@@ -1,6 +1,8 @@
 package SportifyClubManager.src;
 
-public class PostgresFactory {
+public class PostgresFactory extends AbstractFactory{
+    public PostgresFactory()
+
 
     
 }
