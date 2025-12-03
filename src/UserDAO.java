@@ -1,6 +1,8 @@
 package SportifyClubManager.src;
 
-public class UserDAO {
 
-    
+public abstract class UserDAO {
+
+    public abstract User getUserById(String id);
+
 }

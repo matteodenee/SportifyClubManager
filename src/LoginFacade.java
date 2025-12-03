@@ -5,14 +5,14 @@ public class LoginFacade {
     private LoginFacade(){}
     public static LoginFacade createLoginFacade(){
         if (log == null){
-            LoginFacade log = new LoginFacade();
+             log = new LoginFacade();
         }
         return log;
     }
 
-    public void login( String id,String pwd){
+    public User login( String id,String pwd){
         UserManager um = UserManager.createUserManager();
-        um.login(id, pwd);
+        return um.login(id, pwd);
     }
 
 

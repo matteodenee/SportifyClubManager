@@ -8,15 +8,25 @@ public class UserManager {
     }
     public static UserManager createUserManager(){
         if (um == null){
-            UserManager um = new UserManager();
+             um = new UserManager();
         }
         return um;
     }
 
-    public void login( String id,String pwd){
+    public User login( String id,String pwd){
         AbstractFactory f = AbstractFactory.createFactory();
         UserDAO udao = f.createUserDAO();
-        this.currentUser = UserDAO.getuserbyid(id);
+        User user = udao.getUserById(id);
+        if (user != null){
+            if (user.getPwd() == pwd) {
+                this.currentUser = user;
+            }
+            else{ this.currentUser = null;
+
+            }
+        }
+        return this.currentUser ;
+        
     }
 
     
