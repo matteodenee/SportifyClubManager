@@ -18,11 +18,11 @@ public class UserManager {
         UserDAO udao = f.createUserDAO();
         User user = udao.getUserById(id);
         if (user != null){
-            if (user.getPwd() == pwd) {
+            if (pwd != null && pwd.equals(user.getPwd())) {
                 this.currentUser = user;
             }
-            else{ this.currentUser = null;
-
+            else {
+                this.currentUser = null;
             }
         }
         return this.currentUser ;

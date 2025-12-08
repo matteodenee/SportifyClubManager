@@ -4,13 +4,12 @@ public class PostgresFactory extends AbstractFactory{
     public PostgresFactory(){}
 
     public static PostgresFactory createFactory(){
-        return null;}
+        return new PostgresFactory();
+    }
 
     @Override
     public UserDAO createUserDAO() {
-        return null;
-        // TODO Auto-generated method stub
-        
+        return new PostgresUserDAO();
     }
 
 
