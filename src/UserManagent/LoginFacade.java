@@ -1,4 +1,4 @@
-package SportifyClubManager.src;
+package UserManagent;
 
 public class LoginFacade {
     private static  LoginFacade log = null;

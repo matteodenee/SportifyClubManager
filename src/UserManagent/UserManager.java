@@ -1,4 +1,4 @@
-package SportifyClubManager.src;
+package UserManagent;
 
 public class UserManager {
     private static  UserManager um = null;

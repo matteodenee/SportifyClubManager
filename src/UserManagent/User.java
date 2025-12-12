@@ -1,4 +1,4 @@
-package SportifyClubManager.src;
+package UserManagent;
 
 public class User {
     String id ;

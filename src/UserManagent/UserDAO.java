@@ -1,4 +1,4 @@
-package SportifyClubManager.src;
+package UserManagent;
 
 
 public abstract class UserDAO {
