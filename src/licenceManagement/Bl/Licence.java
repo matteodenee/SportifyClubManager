@@ -45,6 +45,34 @@ public class Licence {
         this.commentaireAdmin = null;
     }
 
+    // Constructeur de reconstruction depuis la base de données
+    public Licence(
+            String id,
+            TypeSport sport,
+            TypeLicence typeLicence,
+            StatutLicence statut,
+            Date dateDemande,
+            Date dateDebut,
+            Date dateFin,
+            User membre,
+            Document[] lisDocument,
+            Date dateDecision,
+            String commentaireAdmin
+    ) {
+        this.id = id;
+        this.sport = sport;
+        this.typeLicence = typeLicence;
+        this.statut = statut;
+        this.dateDemande = dateDemande;
+        this.dateDebut = dateDebut;
+        this.dateFin = dateFin;
+        this.membre = membre;
+        this.lisDocument = lisDocument;
+        this.dateDecision = dateDecision;
+        this.commentaireAdmin = commentaireAdmin;
+    }
+
+
 
     public String getId() {
         return id;
