@@ -1,5 +1,7 @@
 package UserManagent;
 
+import persistance.AbstractFactory;
+
 public class UserManager {
     private static  UserManager um = null;
     private User currentUser;
@@ -14,7 +16,7 @@ public class UserManager {
     }
 
     public User login( String id,String pwd){
-        AbstractFactory f = AbstractFactory.createFactory();
+        AbstractFactory f = AbstractFactory.getFactory();
         UserDAO udao = f.createUserDAO();
         User user = udao.getUserById(id);
         if (user != null){

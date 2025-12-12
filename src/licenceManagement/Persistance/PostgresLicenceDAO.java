@@ -1,11 +1,13 @@
 package licenceManagement.Persistance;
 
 import licenceManagement.Bl.Licence;
-import licenceManagement.Bl.LicenceDAO;
+import licenceManagement.Bl.dao.LicenceDAO;
 import licenceManagement.Enum.StatutLicence;
 import licenceManagement.Enum.TypeLicence;
+import persistance.AbstractFactory;
 import TypeSportManagement.TypeSport;
 import UserManagent.User;
+import UserManagent.UserDAO;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -13,7 +15,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
-import java.sql.Date;
 
 public class PostgresLicenceDAO extends LicenceDAO {
 
@@ -45,7 +46,7 @@ public class PostgresLicenceDAO extends LicenceDAO {
     // CREATE
     // =======================
     @Override
-    public void save(Licence licence) {
+    public void insert(Licence licence) {
 
         String sql = """
             INSERT INTO licences
@@ -138,8 +139,11 @@ public class PostgresLicenceDAO extends LicenceDAO {
     // MAPPING
     // =======================
     private Licence mapResultSetToLicence(ResultSet rs) throws SQLException {
-
-    return new Licence(
+        AbstractFactory f = AbstractFactory.getFactory();
+        UserDAO udao = f.createUserDAO();
+        User user = udao.getUserById(rs.getString("membre_id"));
+    
+        return new Licence(
         rs.getString("id"),
         TypeSport.valueOf(rs.getString("sport")),
         TypeLicence.valueOf(rs.getString("type_licence")),
@@ -147,7 +151,7 @@ public class PostgresLicenceDAO extends LicenceDAO {
         rs.getDate("date_demande"),
         rs.getDate("date_debut"),
         rs.getDate("date_fin"),
-        new User(rs.getString("membre_id")),
+        new User(user.getId(),user.getPwd() ),
         null, // documents via DAO séparée
         rs.getDate("date_decision"),
         rs.getString("commentaire_admin")

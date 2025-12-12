@@ -1,4 +1,7 @@
-package UserManagent;
+package persistance;
+
+import UserManagent.UserDAO;
+import licenceManagement.Bl.dao.LicenceDAO;
 
 public abstract class AbstractFactory {
 
@@ -6,7 +9,7 @@ public abstract class AbstractFactory {
 
     protected AbstractFactory() {}
 
-    public static AbstractFactory createFactory() {
+    public static AbstractFactory getFactory() {
         if (instance == null) {
             instance = new PostgresFactory();
         }
@@ -14,4 +17,6 @@ public abstract class AbstractFactory {
     }
 
     public abstract UserDAO createUserDAO();
+    public abstract LicenceDAO createlicenceDAO();
+
 }

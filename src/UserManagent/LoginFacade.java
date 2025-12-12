@@ -14,10 +14,4 @@ public class LoginFacade {
         UserManager um = UserManager.createUserManager();
         return um.login(id, pwd);
     }
-
-
-
-    
-
-    
 }
