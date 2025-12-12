@@ -1,17 +1,20 @@
 package SportifyClubManager.src;
 
-public class PostgresFactory extends AbstractFactory{
-    public PostgresFactory(){}
+public class PostgresFactory extends AbstractFactory {
 
-    public static PostgresFactory createFactory(){
+    // Constructeur
+    public PostgresFactory() {}
+
+    // Méthode pour obtenir l'instance unique de PostgresFactory (Singleton)
+    public static PostgresFactory getInstance() {
         return new PostgresFactory();
     }
 
+    // Méthode pour obtenir un UserDAO en utilisant le Singleton de PostgresUserDAO
     @Override
     public UserDAO createUserDAO() {
-        return new PostgresUserDAO();
+        // Utiliser la méthode getInstance() pour obtenir l'instance unique de PostgresUserDAO
+        return PostgresUserDAO.getInstance();
     }
-
-
-    
 }
+

@@ -1,14 +1,11 @@
 package SportifyClubManager.src;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 
 public class PostgresUserDAO extends UserDAO {
 
-    private static final String DEFAULT_URL = "jdbc:postgresql://localhost:5432/sportifyclub";
+    // Paramètres de connexion par défaut
+    private static final String DEFAULT_URL = "jdbc:postgresql://localhost:5433/sportifyclub";
     private static final String DEFAULT_USER = "postgres";
     private static final String DEFAULT_PASSWORD = "postgres";
 
@@ -16,21 +13,36 @@ public class PostgresUserDAO extends UserDAO {
     private final String user;
     private final String password;
 
-    public PostgresUserDAO() {
-        this(System.getenv("DB_URL"), System.getenv("DB_USER"), System.getenv("DB_PASSWORD"));
-    }
+    // Instance unique de PostgresUserDAO
+    private static PostgresUserDAO instance;
 
-    public PostgresUserDAO(String url, String user, String password) {
-        this.url = (url == null || url.isEmpty()) ? DEFAULT_URL : url;
-        this.user = (user == null || user.isEmpty()) ? DEFAULT_USER : user;
-        this.password = (password == null) ? DEFAULT_PASSWORD : password;
+    // Connexion à la base de données (partagée entre toutes les demandes)
+    private static Connection connection;
+
+    // Constructeur privé pour empêcher la création d'instances en dehors de la classe
+    private PostgresUserDAO() {
+        this.url = (System.getenv("DB_URL") != null && !System.getenv("DB_URL").isEmpty()) ? System.getenv("DB_URL") : DEFAULT_URL;
+        this.user = (System.getenv("DB_USER") != null && !System.getenv("DB_USER").isEmpty()) ? System.getenv("DB_USER") : DEFAULT_USER;
+        this.password = (System.getenv("DB_PASSWORD") != null && !System.getenv("DB_PASSWORD").isEmpty()) ? System.getenv("DB_PASSWORD") : DEFAULT_PASSWORD;
 
         try {
+            // Charger le driver PostgreSQL
             Class.forName("org.postgresql.Driver");
-        } catch (ClassNotFoundException e) {
-            // Driver not present; connection attempt will fail but we avoid a hard crash here.
-            System.err.println("PostgreSQL JDBC driver not found on classpath.");
+            // Si la connexion n'existe pas encore, la créer
+            if (connection == null || connection.isClosed()) {
+                connection = DriverManager.getConnection(url, user, password);
+            }
+        } catch (ClassNotFoundException | SQLException e) {
+            System.err.println("Erreur lors de la connexion à PostgreSQL: " + e.getMessage());
         }
+    }
+
+    // Méthode publique pour obtenir l'instance unique de PostgresUserDAO (Singleton)
+    public static synchronized PostgresUserDAO getInstance() {
+        if (instance == null) {
+            instance = new PostgresUserDAO();
+        }
+        return instance;
     }
 
     @Override
@@ -41,9 +53,7 @@ public class PostgresUserDAO extends UserDAO {
 
         String sql = "SELECT id, password FROM users WHERE id = ?";
 
-        try (Connection conn = DriverManager.getConnection(url, user, password);
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, id);
 
             try (ResultSet rs = stmt.executeQuery()) {
@@ -54,9 +64,25 @@ public class PostgresUserDAO extends UserDAO {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Erreur de base de donnees lors de la recuperation de l'utilisateur: " + e.getMessage());
+            System.err.println("Erreur de base de données lors de la récupération de l'utilisateur: " + e.getMessage());
         }
 
         return null;
+    }
+
+    // Méthode pour obtenir la connexion partagée
+    public static Connection getConnection() {
+        return connection;
+    }
+
+    // Méthode pour fermer la connexion à la base de données
+    public static void closeConnection() {
+        try {
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur lors de la fermeture de la connexion : " + e.getMessage());
+        }
     }
 }
