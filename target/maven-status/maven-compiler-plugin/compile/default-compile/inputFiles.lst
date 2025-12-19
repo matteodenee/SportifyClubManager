@@ -1,0 +1,9 @@
+/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/UserManager.java
+/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/frame/LoginFrame.java
+/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/persistence/PostgresFactory.java
+/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/User.java
+/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/controllers/LoginController.java
+/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/facade/LoginFacade.java
+/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/persistence/AbstractFactory.java
+/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/UserDAO.java
+/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/PostgresUserDAO.java

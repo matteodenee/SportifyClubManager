@@ -1,0 +1,9 @@
+com/sportify/manager/services/User.class
+com/sportify/manager/persistence/AbstractFactory.class
+com/sportify/manager/dao/UserDAO.class
+com/sportify/manager/dao/PostgresUserDAO.class
+com/sportify/manager/frame/LoginFrame.class
+com/sportify/manager/controllers/LoginController.class
+com/sportify/manager/services/UserManager.class
+com/sportify/manager/persistence/PostgresFactory.class
+com/sportify/manager/facade/LoginFacade.class
