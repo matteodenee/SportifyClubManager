@@ -1,7 +1,7 @@
 package com.sportify.manager.persistence;
 
 import com.sportify.manager.dao.UserDAO;
-
+import com.sportify.manager.dao.ClubDAO;
 
 public abstract class AbstractFactory {
 
@@ -11,10 +11,14 @@ public abstract class AbstractFactory {
 
     public static AbstractFactory createFactory() {
         if (instance == null) {
-            instance = new PostgresFactory();
+            instance = new PostgresFactory();  // Création d'une instance de PostgresFactory
         }
         return instance;
     }
 
+    // Méthode pour créer UserDAO
     public abstract UserDAO createUserDAO();
+
+    // Méthode pour créer ClubDAO
+    public abstract ClubDAO createClubDAO();
 }
