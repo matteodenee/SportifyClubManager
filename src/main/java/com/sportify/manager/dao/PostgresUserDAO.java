@@ -3,11 +3,8 @@ package com.sportify.manager.dao;
 import com.sportify.manager.services.User;
 import java.sql.*;
 
-
-
 public class PostgresUserDAO extends UserDAO {
 
-    // Paramètres de connexion par défaut
     private static final String DEFAULT_URL = "jdbc:postgresql://162.38.112.60:5432/erben-db";
     private static final String DEFAULT_USER = "rasim.erben";
     private static final String DEFAULT_PASSWORD = "erben2024!";
@@ -16,22 +13,16 @@ public class PostgresUserDAO extends UserDAO {
     private final String user;
     private final String password;
 
-    // Instance unique de PostgresUserDAO
     private static PostgresUserDAO instance;
-
-    // Connexion à la base de données (partagée entre toutes les demandes)
     private static Connection connection;
 
-    // Constructeur privé pour empêcher la création d'instances en dehors de la classe
     private PostgresUserDAO() {
         this.url = (System.getenv("DB_URL") != null && !System.getenv("DB_URL").isEmpty()) ? System.getenv("DB_URL") : DEFAULT_URL;
         this.user = (System.getenv("DB_USER") != null && !System.getenv("DB_USER").isEmpty()) ? System.getenv("DB_USER") : DEFAULT_USER;
         this.password = (System.getenv("DB_PASSWORD") != null && !System.getenv("DB_PASSWORD").isEmpty()) ? System.getenv("DB_PASSWORD") : DEFAULT_PASSWORD;
 
         try {
-            // Charger le driver PostgreSQL
             Class.forName("org.postgresql.Driver");
-            // Si la connexion n'existe pas encore, la créer
             if (connection == null || connection.isClosed()) {
                 connection = DriverManager.getConnection(url, user, password);
             }
@@ -40,7 +31,6 @@ public class PostgresUserDAO extends UserDAO {
         }
     }
 
-    // Méthode publique pour obtenir l'instance unique de PostgresUserDAO (Singleton)
     public static synchronized PostgresUserDAO getInstance() {
         if (instance == null) {
             instance = new PostgresUserDAO();
@@ -54,16 +44,23 @@ public class PostgresUserDAO extends UserDAO {
             return null;
         }
 
-        String sql = "SELECT id, password FROM users WHERE id = ?";
+        // MISE À JOUR : Sélection de toutes les colonnes nécessaires selon le diagramme de classes
+        String sql = "SELECT id, password, name, email, role FROM users WHERE id = ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, id);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
+                    // Extraction des nouvelles données
                     String userId = rs.getString("id");
                     String pwd = rs.getString("password");
-                    return new User(userId, pwd);
+                    String name = rs.getString("name");
+                    String email = rs.getString("email");
+                    String role = rs.getString("role");
+
+                    // Retourne l'objet User complet (assurez-vous d'avoir mis à jour User.java avant)
+                    return new User(userId, pwd, name, email, role);
                 }
             }
         } catch (SQLException e) {
@@ -73,12 +70,10 @@ public class PostgresUserDAO extends UserDAO {
         return null;
     }
 
-    // Méthode pour obtenir la connexion partagée
     public static Connection getConnection() {
         return connection;
     }
 
-    // Méthode pour fermer la connexion à la base de données
     public static void closeConnection() {
         try {
             if (connection != null && !connection.isClosed()) {

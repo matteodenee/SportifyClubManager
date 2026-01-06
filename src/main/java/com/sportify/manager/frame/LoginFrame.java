@@ -2,31 +2,30 @@ package com.sportify.manager.frame;
 
 import com.sportify.manager.controllers.LoginController;
 import com.sportify.manager.services.User;
+import com.sportify.manager.controllers.ClubController;
+import com.sportify.manager.dao.PostgresUserDAO;
+
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
-
-
+import java.sql.Connection;
 
 public class LoginFrame extends Application {
-    // fenetre javafx pour la page login
-    private LoginController loginController;
 
+    private LoginController loginController;
     private TextField idField;
     private PasswordField pwdField;
     private Label messageLabel;
 
     public void setLoginController(LoginController controller) {
-        // la vue recupere son controleur
         this.loginController = controller;
     }
 
     @Override
     public void start(Stage primaryStage) {
-        // si rien n'est injecte on fabrique un controleur par defaut
         if (loginController == null) {
             loginController = new LoginController();
         }
@@ -61,18 +60,113 @@ public class LoginFrame extends Application {
         primaryStage.show();
     }
 
+    // --- LOGIQUE DE REDIRECTION PAR RÔLE ---
     public void showLoginSuccess(User user) {
-        // message simple en cas de succes
-        messageLabel.setText("Welcome " + user.getId() + "!");
+        // On s'assure que le rôle est traité de manière insensible à la casse
+        String role = user.getRole().toUpperCase();
+
+        switch (role) {
+            case "ADMIN":
+                openClubManagementFrame();
+                break;
+
+            case "DIRECTOR":
+                // Maintenant, le directeur va vers sa propre interface
+                openDirectorDashboard(user);
+                break;
+
+            case "MEMBER":
+                openMemberDashboard(user);
+                break;
+
+            case "COACH":
+                messageLabel.setText("Coach space not yet implemented.");
+                break;
+
+            default:
+                messageLabel.setText("Unknown role: " + role);
+        }
     }
 
     public void showLoginError() {
-        // message simple en cas d'erreur
         messageLabel.setText("Invalid credentials.");
     }
 
+    // --- FENÊTRES DE DESTINATION ---
+
+    /**
+     * Fenêtre pour ADMIN (Gestion de la structure des clubs)
+     */
+    public void openClubManagementFrame() {
+        try {
+            Connection connection = PostgresUserDAO.getConnection();
+            ClubController clubController = new ClubController(connection);
+
+            ClubManagementFrame clubManagementFrame = new ClubManagementFrame();
+            clubManagementFrame.setClubController(clubController);
+
+            Stage clubStage = new Stage();
+            clubManagementFrame.start(clubStage);
+
+            closeCurrentStage();
+        } catch (Exception e) {
+            e.printStackTrace();
+            messageLabel.setText("Admin UI error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Fenêtre pour DIRECTOR (Gestion des demandes d'adhésion)
+     */
+    public void openDirectorDashboard(User user) {
+        try {
+            Connection connection = PostgresUserDAO.getConnection();
+            ClubController clubController = new ClubController(connection);
+
+            DirectorDashboardFrame directorFrame = new DirectorDashboardFrame(user);
+            directorFrame.setClubController(clubController);
+
+            Stage directorStage = new Stage();
+            directorFrame.start(directorStage);
+
+            closeCurrentStage();
+        } catch (Exception e) {
+            e.printStackTrace();
+            messageLabel.setText("Director UI error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Fenêtre pour MEMBER (Consultation et demandes)
+     */
+    public void openMemberDashboard(User user) {
+        try {
+            Connection connection = PostgresUserDAO.getConnection();
+            ClubController clubController = new ClubController(connection);
+
+            MemberDashboardFrame memberFrame = new MemberDashboardFrame(user);
+            memberFrame.setClubController(clubController);
+
+            Stage memberStage = new Stage();
+            memberFrame.start(memberStage);
+
+            closeCurrentStage();
+        } catch (Exception e) {
+            e.printStackTrace();
+            messageLabel.setText("Member UI error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Utilitaire pour fermer la fenêtre de login
+     */
+    private void closeCurrentStage() {
+        if (idField.getScene() != null && idField.getScene().getWindow() != null) {
+            ((Stage) idField.getScene().getWindow()).close();
+        }
+    }
+
     public static void main(String[] args) {
-        // entree standard pour lancer la fenetre
         launch(args);
     }
 }
