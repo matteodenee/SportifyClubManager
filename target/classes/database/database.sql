@@ -7,7 +7,7 @@ DROP TABLE IF EXISTS members;
 DROP TABLE IF EXISTS licences;
 DROP TABLE IF EXISTS sport_roles;
 DROP TABLE IF EXISTS sport_stats;
-DROP TABLE IF EXISTS clubs;       -- Supprimé ici car dépend de type_sports
+DROP TABLE IF EXISTS clubs;
 DROP TABLE IF EXISTS type_sports;
 DROP TABLE IF EXISTS users;
 
@@ -25,7 +25,6 @@ CREATE TABLE users (
 );
 
 -- 2. Table des Disciplines (TypeSport)
--- Créée AVANT clubs pour que la colonne "type" du club y fasse référence
 CREATE TABLE type_sports (
                              id SERIAL PRIMARY KEY,
                              nom VARCHAR(100) NOT NULL,
@@ -38,7 +37,6 @@ CREATE TABLE clubs (
                        clubid SERIAL PRIMARY KEY,
                        name VARCHAR(100) NOT NULL,
                        description TEXT,
-    -- RECTIFICATION : Le "type" est maintenant une clé étrangère vers type_sports
                        sport_id INT REFERENCES type_sports(id) ON DELETE CASCADE,
                        meetingschedule TEXT,
                        maxcapacity INT,
@@ -125,18 +123,17 @@ INSERT INTO users (id, password, name, email, role) VALUES
 
 -- 2. Types de Sports
 INSERT INTO type_sports (nom, description, nb_joueurs) VALUES
-                                                           ('Football', 'Sport collectif 11 vs 11', 11),  -- ID 1
-                                                           ('Basketball', 'Sport de salle 5 vs 5', 5),     -- ID 2
-                                                           ('Tennis', 'Sport de raquette individuel', 2),  -- ID 3
-                                                           ('Handball', 'Sport collectif 7 vs 7', 7),      -- ID 4
-                                                           ('Rugby', 'Sport de contact 15 vs 15', 15);     -- ID 5
+                                                           ('Football', 'Sport collectif 11 vs 11', 11),
+                                                           ('Basketball', 'Sport de salle 5 vs 5', 5),
+                                                           ('Tennis', 'Sport de raquette individuel', 2),
+                                                           ('Handball', 'Sport collectif 7 vs 7', 7),
+                                                           ('Rugby', 'Sport de contact 15 vs 15', 15);
 
 -- 3. Rôles et Stats
 INSERT INTO sport_roles (sport_id, role_name) VALUES (1, 'Gardien'), (1, 'Buteur'), (5, 'Pilier');
 INSERT INTO sport_stats (sport_id, stat_name) VALUES (1, 'Buts'), (5, 'Essais');
 
--- 4. Clubs (LIES AU TYPE DE SPORT)
--- Ici on remplace la chaîne 'Sport' par l'ID du sport correspondant
+-- 4. Clubs
 INSERT INTO clubs (name, description, sport_id, meetingschedule, maxcapacity, requirements, manager_id) VALUES
                                                                                                             ('Olympique Sportify', 'Club spécialisé en Football', 1, 'Lundi 18h', 50, 'Certificat médical', 'dir_foot'),
                                                                                                             ('Rugby Club Erben', 'Club de rugby local', 5, 'Mercredi 14h', 30, 'Aucun', 'dir_foot');
@@ -148,3 +145,30 @@ INSERT INTO licences (id, sport_id, type_licence, statut, membre_id) VALUES
 
 -- 6. Demandes d'adhésion
 INSERT INTO membership_requests (clubid, userid, status) VALUES (1, 'user1', 'PENDING');
+
+---------------------------------------------------------
+-- AJOUT CRUCIAL : LIAISON DU COACH AU CLUB
+---------------------------------------------------------
+-- Sans cette ligne, PostgresUserDAO.getClubIdByCoach('coach_zidane') renverra toujours -1
+INSERT INTO members (userid, clubid, role_in_club) VALUES
+    ('coach_zidane', 1, 'COACH');
+
+---------------------------------------------------------
+-- DONNÉES DE TEST POUR LES STATISTIQUES (SMALL_EVENTS)
+---------------------------------------------------------
+
+INSERT INTO small_events (type, description, team_id, player_id, period, event_date) VALUES
+-- Match 1
+('MATCH', 'Match de championnat vs Lyon', 1, NULL, 'Saison 2024', '2024-01-10 14:00:00'),
+('VICTOIRE', 'Résultat Match 1', 1, NULL, 'Saison 2024', '2024-01-10 16:00:00'),
+('GOAL', 'But magnifique de Alice', 1, 'user1', 'Saison 2024', '2024-01-10 14:30:00'),
+('GOAL', 'But de la tête de Bob', 1, 'user2', 'Saison 2024', '2024-01-10 15:15:00'),
+-- Match 2
+('MATCH', 'Match amical vs Paris', 1, NULL, 'Saison 2024', '2024-02-15 18:00:00'),
+('CARD', 'Carton jaune pour Bob', 1, 'user2', 'Saison 2024', '2024-02-15 18:45:00'),
+('GOAL', 'Egalisation de Alice', 1, 'user1', 'Saison 2024', '2024-02-15 19:20:00'),
+-- Match 3
+('MATCH', 'Quart de finale Coupe', 1, NULL, 'Saison 2024', '2024-03-20 20:45:00'),
+('DEFAITE', 'Résultat Match 3', 1, NULL, 'Saison 2024', '2024-03-20 22:30:00'),
+('CARD', 'Carton rouge Alice', 1, 'user1', 'Saison 2024', '2024-03-20 21:10:00'),
+('FAUTE', 'Faute technique Bob', 1, 'user2', 'Saison 2024', '2024-03-20 21:40:00');

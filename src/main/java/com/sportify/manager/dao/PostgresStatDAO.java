@@ -3,7 +3,9 @@ package com.sportify.manager.dao;
 import com.sportify.manager.services.SmallEvent;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class PostgresStatDAO implements StatDAO {
     private Connection connection;
@@ -12,19 +14,17 @@ public class PostgresStatDAO implements StatDAO {
         this.connection = connection;
     }
 
+    // --- MÉTHODES EXISTANTES ---
+
     @Override
     public List<SmallEvent> getEventsByTeam(int teamId, String period) throws SQLException {
         List<SmallEvent> events = new ArrayList<>();
-        String query = "SELECT * FROM small_events WHERE team_id = ? AND period = ?";
-
+        String query = "SELECT * FROM small_events WHERE team_id = ? AND period = ? ORDER BY event_date DESC";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, teamId);
             stmt.setString(2, period);
-
             try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    events.add(mapRowToEvent(rs));
-                }
+                while (rs.next()) events.add(mapRowToEvent(rs));
             }
         }
         return events;
@@ -34,15 +34,11 @@ public class PostgresStatDAO implements StatDAO {
     public List<SmallEvent> getEventsByPlayer(String playerId, String period) throws SQLException {
         List<SmallEvent> events = new ArrayList<>();
         String query = "SELECT * FROM small_events WHERE player_id = ? AND period = ?";
-
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, playerId);
             stmt.setString(2, period);
-
             try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    events.add(mapRowToEvent(rs));
-                }
+                while (rs.next()) events.add(mapRowToEvent(rs));
             }
         }
         return events;
@@ -62,7 +58,79 @@ public class PostgresStatDAO implements StatDAO {
         }
     }
 
-    // Méthode utilitaire pour transformer une ligne SQL en objet Java
+    // --- NOUVELLES MÉTHODES À IMPLÉMENTER (Correction de l'erreur) ---
+
+    @Override
+    public Map<String, Integer> getAggregatedStatsByTeam(int teamId, String period) throws SQLException {
+        Map<String, Integer> stats = new HashMap<>();
+        String query = "SELECT type, COUNT(*) as total FROM small_events WHERE team_id = ? AND period = ? GROUP BY type";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, teamId);
+            stmt.setString(2, period);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) stats.put(rs.getString("type"), rs.getInt("total"));
+            }
+        }
+        return stats;
+    }
+
+    @Override
+    public Map<String, Double> getPlayerPerformanceMetrics(String playerId, String period) throws SQLException {
+        Map<String, Double> metrics = new HashMap<>();
+        // Exemple : Calculer le ratio de buts par rapport au total d'événements du joueur
+        String query = "SELECT type, COUNT(*) as count FROM small_events WHERE player_id = ? AND period = ? GROUP BY type";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, playerId);
+            stmt.setString(2, period);
+            try (ResultSet rs = stmt.executeQuery()) {
+                int total = 0;
+                int goals = 0;
+                while (rs.next()) {
+                    int c = rs.getInt("count");
+                    total += c;
+                    if (rs.getString("type").equals("GOAL")) goals = c;
+                }
+                if (total > 0) metrics.put("GoalRatio", (double) goals / total);
+            }
+        }
+        return metrics;
+    }
+
+    @Override
+    public Map<String, Integer> getTopPerformers(int teamId, String eventType, int limit) throws SQLException {
+        Map<String, Integer> ranking = new HashMap<>();
+        String query = "SELECT player_id, COUNT(*) as score FROM small_events " +
+                "WHERE team_id = ? AND type = ? GROUP BY player_id ORDER BY score DESC LIMIT ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, teamId);
+            stmt.setString(2, eventType);
+            stmt.setInt(3, limit);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) ranking.put(rs.getString("player_id"), rs.getInt("score"));
+            }
+        }
+        return ranking;
+    }
+
+    @Override
+    public Map<String, Integer> getTrendData(int teamId, String eventType, String startDate, String endDate) throws SQLException {
+        Map<String, Integer> trends = new HashMap<>();
+        // On groupe par jour pour voir l'évolution (Trend)
+        String query = "SELECT DATE(event_date) as day, COUNT(*) as total FROM small_events " +
+                "WHERE team_id = ? AND type = ? AND event_date BETWEEN ? AND ? " +
+                "GROUP BY day ORDER BY day ASC";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, teamId);
+            stmt.setString(2, eventType);
+            stmt.setString(3, startDate);
+            stmt.setString(4, endDate);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) trends.put(rs.getString("day"), rs.getInt("total"));
+            }
+        }
+        return trends;
+    }
+
     private SmallEvent mapRowToEvent(ResultSet rs) throws SQLException {
         return new SmallEvent(
                 rs.getInt("id"),

@@ -3,73 +3,108 @@ package com.sportify.manager.frame;
 import com.sportify.manager.controllers.StatController;
 import com.sportify.manager.services.Statistique;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.chart.PieChart;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
-import java.util.List;
+import java.util.Map;
 
 public class StatFrame {
 
     private StatController controller = new StatController();
+    private PieChart pieChart;
+    private VBox kpiContainer;
+    private int currentTeamId;
 
     public void show(int teamId) {
+        this.currentTeamId = teamId;
         Stage stage = new Stage();
 
-        // --- CONTAINER PRINCIPAL ---
-        VBox root = new VBox(20);
-        root.setPadding(new Insets(25));
-        root.setStyle("-fx-background-color: #f4f7f6;");
+        BorderPane mainLayout = new BorderPane();
+        mainLayout.setPadding(new Insets(20));
+        mainLayout.setStyle("-fx-background-color: #f4f7f6;");
 
-        // --- HEADER ---
-        VBox header = new VBox(5);
-        Label title = new Label("Analyse de Performance");
-        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
+        // --- TOP : FILTRES (Use Case 7) ---
+        HBox filterBar = new HBox(15);
+        filterBar.setAlignment(Pos.CENTER_LEFT);
+        filterBar.setPadding(new Insets(0, 0, 20, 0));
 
-        Label subTitle = new Label("ID Équipe : " + teamId + " | Saison 2024");
-        subTitle.setStyle("-fx-text-fill: #7f8c8d; -fx-font-size: 13px;");
+        Label filterLabel = new Label("Période :");
+        ComboBox<String> periodCombo = new ComboBox<>(FXCollections.observableArrayList("Saison 2024", "Dernier Mois", "Global"));
+        periodCombo.setValue("Saison 2024");
 
-        header.getChildren().addAll(title, subTitle);
+        periodCombo.setOnAction(e -> updateDashboard(periodCombo.getValue()));
 
-        // --- TABLEAU STYLISÉ ---
-        TableView<Statistique> table = new TableView<>();
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        table.setStyle("-fx-background-radius: 5; -fx-border-radius: 5;");
+        filterBar.getChildren().addAll(filterLabel, periodCombo);
+        mainLayout.setTop(filterBar);
 
-        TableColumn<Statistique, String> colType = new TableColumn<>("Indicateur");
-        colType.setCellValueFactory(new PropertyValueFactory<>("type"));
-        colType.setStyle("-fx-alignment: CENTER-LEFT;");
+        // --- CENTER : GRAPHIQUE (Use Case 2) ---
+        pieChart = new PieChart();
+        pieChart.setTitle("Répartition des Actions");
+        pieChart.setLegendVisible(true);
 
-        TableColumn<Statistique, Double> colVal = new TableColumn<>("Total");
-        colVal.setCellValueFactory(new PropertyValueFactory<>("valeur"));
-        colVal.setStyle("-fx-alignment: CENTER; -fx-font-weight: bold; -fx-text-fill: #3498db;");
+        mainLayout.setCenter(pieChart);
 
-        table.getColumns().addAll(colType, colVal);
+        // --- RIGHT : KPI (Ratios du flux 9.2.1) ---
+        kpiContainer = new VBox(15);
+        kpiContainer.setPadding(new Insets(0, 0, 0, 20));
+        kpiContainer.setAlignment(Pos.TOP_CENTER);
 
-        // --- CHARGEMENT DES DONNÉES ---
-        List<Statistique> stats = controller.getStatsForTeam(teamId, "Saison 2024");
-        table.setItems(FXCollections.observableArrayList(stats));
+        mainLayout.setRight(kpiContainer);
 
-        // --- PIED DE PAGE ---
+        // --- BOTTOM : ACTIONS ---
         HBox footer = new HBox();
+        footer.setPadding(new Insets(20, 0, 0, 0));
         footer.setAlignment(Pos.CENTER_RIGHT);
-        Button btnClose = new Button("Fermer");
-        btnClose.setStyle("-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 20; -fx-cursor: hand;");
+        Button btnClose = new Button("Fermer l'analyse");
+        btnClose.setStyle("-fx-background-color: #2c3e50; -fx-text-fill: white;");
         btnClose.setOnAction(e -> stage.close());
         footer.getChildren().add(btnClose);
+        mainLayout.setBottom(footer);
 
-        // --- ASSEMBLAGE ---
-        root.getChildren().addAll(header, table, footer);
-        VBox.setVgrow(table, Priority.ALWAYS); // Le tableau prend toute la place disponible
+        // Chargement initial
+        updateDashboard("Saison 2024");
 
-        Scene scene = new Scene(root, 450, 550);
-        stage.setTitle("Sportify - Statistiques");
-
-        // Empêche d'ouvrir 50 fois la même fenêtre si on clique trop
-        stage.setResizable(false);
+        Scene scene = new Scene(mainLayout, 900, 600);
+        stage.setTitle("Tableau de Bord Statistique - Sportify");
+        stage.setScene(scene);
         stage.show();
+    }
+
+    private void updateDashboard(String period) {
+        // 1. Mise à jour du PieChart (Distribution)
+        Map<String, Integer> distribution = controller.getTeamDistribution(currentTeamId, period);
+        ObservableList<PieChart.Data> pieData = FXCollections.observableArrayList();
+        distribution.forEach((type, total) -> pieData.add(new PieChart.Data(type, total)));
+        pieChart.setData(pieData);
+
+        // 2. Mise à jour des KPI (Ratios calculés par le controller/manager)
+        kpiContainer.getChildren().clear();
+        Map<String, Double> ratios = controller.getPerformanceRatios(currentTeamId, period);
+
+        ratios.forEach((label, value) -> {
+            VBox card = createKPICard(label, String.format("%.2f", value) + (label.contains("Rate") ? "%" : ""));
+            kpiContainer.getChildren().add(card);
+        });
+    }
+
+    private VBox createKPICard(String title, String value) {
+        VBox card = new VBox(5);
+        card.setPadding(new Insets(15));
+        card.setPrefWidth(180);
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 5);");
+
+        Label lblTitle = new Label(title);
+        lblTitle.setStyle("-fx-text-fill: #7f8c8d; -fx-font-size: 12px;");
+
+        Label lblValue = new Label(value);
+        lblValue.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #3498db;");
+
+        card.getChildren().addAll(lblTitle, lblValue);
+        return card;
     }
 }

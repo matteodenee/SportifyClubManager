@@ -2,12 +2,14 @@ package com.sportify.manager.frame;
 
 import com.sportify.manager.controllers.ClubController;
 import com.sportify.manager.controllers.TypeSportController;
+import com.sportify.manager.controllers.LicenceController;
 import com.sportify.manager.services.Club;
 import com.sportify.manager.services.TypeSport;
+import com.sportify.manager.services.licence.Licence;
+import com.sportify.manager.services.licence.StatutLicence;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
@@ -23,19 +25,20 @@ import java.util.stream.Collectors;
 public class ClubManagementFrame extends Application {
     private ClubController clubController;
     private TypeSportController sportController = new TypeSportController();
+    private LicenceController licenceController = new LicenceController();
 
     // Navigation & Layout
     private StackPane contentArea;
-    private VBox clubView, sportView;
-    private Button btnClubs, btnSports;
+    private VBox clubView, sportView, licenceAdminView;
+    private Button btnClubs, btnSports, btnLicences;
 
     // --- ÉLÉMENTS CLUB ---
-    private TextField clubNameField, clubDescriptionField, clubTypeField, meetingScheduleField, maxCapacityField, memberIdField;
+    private TextField clubNameField, clubDescriptionField, clubTypeField, meetingScheduleField, maxCapacityField;
     private TableView<Club> clubTable;
     private Label clubMessageLabel;
     private int currentClubId = 0;
 
-    // --- ÉLÉMENTS TYPE SPORT (Intégration Ami) ---
+    // --- ÉLÉMENTS TYPE SPORT ---
     private TextField sportNomField = new TextField();
     private TextField sportNbJoueursField = new TextField();
     private TextArea sportDescField = new TextArea();
@@ -43,6 +46,10 @@ public class ClubManagementFrame extends Application {
     private TextArea sportStatsField = new TextArea();
     private TableView<TypeSport> sportTable;
     private TypeSport selectedTypeSport = null;
+
+    // --- ÉLÉMENTS LICENCES (CRITÈRE 7.2 & 7.5) ---
+    private TableView<Licence> pendingLicenceTable;
+    private TextArea adminCommentField;
 
     public void setClubController(ClubController controller) {
         this.clubController = controller;
@@ -66,16 +73,19 @@ public class ClubManagementFrame extends Application {
 
         btnClubs = createMenuButton("🏢 Gestion Clubs", true);
         btnSports = createMenuButton("⚙ Type de Sports", false);
+        btnLicences = createMenuButton("📜 Valider Licences", false);
         Button btnLogout = createMenuButton("🚪 Déconnexion", false);
 
-        sidebar.getChildren().addAll(menuLabel, new Separator(), btnClubs, btnSports, btnLogout);
+        sidebar.getChildren().addAll(menuLabel, new Separator(), btnClubs, btnSports, btnLicences, btnLogout);
 
         // --- PRÉPARATION DES VUES ---
         createClubView();
         createSportView();
+        createLicenceAdminView();
 
-        contentArea = new StackPane(clubView, sportView);
-        sportView.setVisible(false); // Club visible par défaut
+        contentArea = new StackPane(clubView, sportView, licenceAdminView);
+        sportView.setVisible(false);
+        licenceAdminView.setVisible(false);
 
         // --- LOGIQUE DE NAVIGATION ---
         btnClubs.setOnAction(e -> switchView(clubView, btnClubs));
@@ -83,20 +93,99 @@ public class ClubManagementFrame extends Application {
             switchView(sportView, btnSports);
             refreshSportList();
         });
+        btnLicences.setOnAction(e -> {
+            switchView(licenceAdminView, btnLicences);
+            refreshPendingLicences();
+        });
         btnLogout.setOnAction(e -> handleLogout(primaryStage));
 
         root.setLeft(sidebar);
         root.setCenter(contentArea);
 
         Scene scene = new Scene(root, 1200, 800);
-        primaryStage.setTitle("Sportify Admin - Club & Sport Management");
+        primaryStage.setTitle("Sportify Admin - Système de Gestion Global");
         primaryStage.setScene(scene);
         refreshClubList();
         primaryStage.show();
     }
 
     // ==========================================
-    // VUE 1 : GESTION DES CLUBS (TON CODE)
+    // VUE 3 : VALIDATION DES LICENCES (NOUVEAU)
+    // ==========================================
+    private void createLicenceAdminView() {
+        licenceAdminView = new VBox(20);
+        licenceAdminView.setPadding(new Insets(30));
+
+        Label title = new Label("Gestion des Licences (Validation)");
+        title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #34495e;");
+
+        pendingLicenceTable = new TableView<>();
+        setupLicenceTable();
+
+        VBox decisionBox = new VBox(10);
+        decisionBox.setPadding(new Insets(20));
+        decisionBox.setStyle("-fx-background-color: white; -fx-background-radius: 10; -fx-border-color: #dcdde1;");
+
+        adminCommentField = new TextArea();
+        adminCommentField.setPromptText("Motif du refus ou commentaire de validation...");
+        adminCommentField.setPrefRowCount(3);
+
+        Button btnApprove = new Button("✅ Valider la Licence");
+        styleButton(btnApprove, "#2ecc71");
+
+        Button btnReject = new Button("❌ Refuser la Demande");
+        styleButton(btnReject, "#e74c3c");
+
+        HBox actionButtons = new HBox(15, btnApprove, btnReject);
+        decisionBox.getChildren().addAll(new Label("Commentaire Administratif :"), adminCommentField, actionButtons);
+
+        licenceAdminView.getChildren().addAll(title, new Label("Demandes en attente (Critère 7.2) :"), pendingLicenceTable, decisionBox);
+
+        btnApprove.setOnAction(e -> handleLicenceDecision(true));
+        btnReject.setOnAction(e -> handleLicenceDecision(false));
+    }
+
+    private void setupLicenceTable() {
+        TableColumn<Licence, String> idCol = new TableColumn<>("ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+
+        TableColumn<Licence, String> memberCol = new TableColumn<>("Membre");
+        memberCol.setCellValueFactory(cellData ->
+                new javafx.beans.property.SimpleStringProperty(cellData.getValue().getMembre().getName()));
+
+        TableColumn<Licence, String> sportCol = new TableColumn<>("Discipline");
+        sportCol.setCellValueFactory(cellData ->
+                new javafx.beans.property.SimpleStringProperty(cellData.getValue().getSport().getNom()));
+
+        TableColumn<Licence, String> typeCol = new TableColumn<>("Type");
+        typeCol.setCellValueFactory(new PropertyValueFactory<>("typeLicence"));
+
+        pendingLicenceTable.getColumns().addAll(idCol, memberCol, sportCol, typeCol);
+        pendingLicenceTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+    }
+
+    private void handleLicenceDecision(boolean approved) {
+        Licence selected = pendingLicenceTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showError("Sélection requise", "Veuillez sélectionner une demande dans la liste.");
+            return;
+        }
+
+        licenceController.validerLicence(selected.getId(), approved, adminCommentField.getText());
+        adminCommentField.clear();
+        refreshPendingLicences();
+
+        String msg = approved ? "Licence validée avec succès. Elle est désormais ACTIVE." : "Demande de licence refusée.";
+        showAlert(Alert.AlertType.INFORMATION, "Décision enregistrée", msg);
+    }
+
+    private void refreshPendingLicences() {
+        List<Licence> pending = licenceController.getLicencesByStatut(StatutLicence.EN_ATTENTE);
+        pendingLicenceTable.setItems(FXCollections.observableArrayList(pending));
+    }
+
+    // ==========================================
+    // VUE 1 : GESTION DES CLUBS
     // ==========================================
     private void createClubView() {
         clubView = new VBox(20);
@@ -112,7 +201,7 @@ public class ClubManagementFrame extends Application {
 
         clubNameField = new TextField(); clubDescriptionField = new TextField();
         clubTypeField = new TextField(); meetingScheduleField = new TextField();
-        maxCapacityField = new TextField(); memberIdField = new TextField();
+        maxCapacityField = new TextField();
         clubMessageLabel = new Label();
         clubMessageLabel.setStyle("-fx-text-fill: #e67e22; -fx-font-weight: bold;");
 
@@ -142,7 +231,7 @@ public class ClubManagementFrame extends Application {
     }
 
     // ==========================================
-    // VUE 2 : GESTION DES SPORTS (CODE AMI INTÉGRÉ)
+    // VUE 2 : GESTION DES SPORTS
     // ==========================================
     private void createSportView() {
         sportView = new VBox(20);
@@ -169,9 +258,8 @@ public class ClubManagementFrame extends Application {
         Button addSportBtn = new Button("➕ Créer"); styleButton(addSportBtn, "#3498db");
         Button updateSportBtn = new Button("💾 Modifier"); styleButton(updateSportBtn, "#f39c12");
         Button deleteSportBtn = new Button("🗑 Supprimer"); styleButton(deleteSportBtn, "#e74c3c");
-        Button clearSportBtn = new Button("🧹 Vider"); styleButton(clearSportBtn, "#95a5a6");
 
-        HBox sportActions = new HBox(10, addSportBtn, updateSportBtn, deleteSportBtn, clearSportBtn);
+        HBox sportActions = new HBox(10, addSportBtn, updateSportBtn, deleteSportBtn);
         grid.add(sportActions, 1, 3, 3, 1);
 
         sportTable = new TableView<>();
@@ -182,53 +270,18 @@ public class ClubManagementFrame extends Application {
         addSportBtn.setOnAction(e -> handleAddSport());
         updateSportBtn.setOnAction(e -> handleUpdateSport());
         deleteSportBtn.setOnAction(e -> handleDeleteSport());
-        clearSportBtn.setOnAction(e -> clearSportFields());
     }
 
-    // --- LOGIQUE MÉTIER SPORT ---
-    private void handleAddSport() {
-        try {
-            sportController.handleCreateTypeSport(sportNomField.getText(), sportDescField.getText(),
-                    Integer.parseInt(sportNbJoueursField.getText()),
-                    parseTextArea(sportRolesField.getText()), parseTextArea(sportStatsField.getText()));
-            refreshSportList(); clearSportFields();
-        } catch (Exception e) { showError("Erreur", "Saisie invalide ou nombre requis."); }
-    }
-
-    private void handleUpdateSport() {
-        if (selectedTypeSport == null) return;
-        try {
-            selectedTypeSport.setNom(sportNomField.getText());
-            selectedTypeSport.setDescription(sportDescField.getText());
-            selectedTypeSport.setNbJoueurs(Integer.parseInt(sportNbJoueursField.getText()));
-            selectedTypeSport.setRoles(parseTextArea(sportRolesField.getText()));
-            selectedTypeSport.setStatistiques(parseTextArea(sportStatsField.getText()));
-            sportController.handleUpdateTypeSport(selectedTypeSport);
-            refreshSportList(); clearSportFields();
-        } catch (Exception e) { showError("Erreur", "Mise à jour impossible."); }
-    }
-
-    private void handleDeleteSport() {
-        if (selectedTypeSport == null) return;
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Supprimer le sport " + selectedTypeSport.getNom() + " ?", ButtonType.YES, ButtonType.NO);
-        alert.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.YES) {
-                sportController.handleDeleteTypeSport(selectedTypeSport.getId());
-                refreshSportList(); clearSportFields();
-            }
-        });
-    }
-
-    // ==========================================
-    // UTILS & NAVIGATION
-    // ==========================================
+    // --- LOGIQUE COMMUNE & UTILS ---
     private void switchView(VBox view, Button activeBtn) {
         clubView.setVisible(false);
         sportView.setVisible(false);
+        licenceAdminView.setVisible(false);
         view.setVisible(true);
 
         btnClubs.setStyle(createMenuButtonStyle(btnClubs == activeBtn));
         btnSports.setStyle(createMenuButtonStyle(btnSports == activeBtn));
+        btnLicences.setStyle(createMenuButtonStyle(btnLicences == activeBtn));
     }
 
     private String createMenuButtonStyle(boolean active) {
@@ -239,51 +292,35 @@ public class ClubManagementFrame extends Application {
         btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 15; -fx-cursor: hand; -fx-background-radius: 5;");
     }
 
-    private List<String> parseTextArea(String text) {
-        if (text == null || text.trim().isEmpty()) return new ArrayList<>();
-        return Arrays.stream(text.split("\n")).map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toList());
+    private void showAlert(Alert.AlertType type, String title, String content) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title); alert.setHeaderText(null); alert.setContentText(content); alert.showAndWait();
+    }
+
+    private void showError(String title, String content) {
+        showAlert(Alert.AlertType.ERROR, title, content);
+    }
+
+    private void handleLogout(Stage currentStage) {
+        currentStage.close();
+        new LoginFrame().start(new Stage());
+    }
+
+    // --- LOGIQUE CLUB & SPORT (Même que précédemment) ---
+    private void refreshClubList() {
+        try { clubTable.setItems(FXCollections.observableArrayList(clubController.getAllClubs())); } catch (SQLException e) { e.printStackTrace(); }
     }
 
     private void refreshSportList() {
         sportTable.setItems(FXCollections.observableArrayList(sportController.handleGetAllTypeSports()));
     }
 
-    private void clearSportFields() {
-        sportNomField.clear(); sportDescField.clear(); sportNbJoueursField.clear();
-        sportRolesField.clear(); sportStatsField.clear(); selectedTypeSport = null;
-    }
-
-    private void setupSportTable() {
-        TableColumn<TypeSport, String> nomCol = new TableColumn<>("Discipline");
-        nomCol.setCellValueFactory(new PropertyValueFactory<>("nom"));
-        TableColumn<TypeSport, Integer> nbCol = new TableColumn<>("Nb Joueurs");
-        nbCol.setCellValueFactory(new PropertyValueFactory<>("nbJoueurs"));
-
-        sportTable.getColumns().addAll(nomCol, nbCol);
-        sportTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
-        sportTable.getSelectionModel().selectedItemProperty().addListener((obs, old, newVal) -> {
-            if (newVal != null) {
-                selectedTypeSport = newVal;
-                sportNomField.setText(newVal.getNom());
-                sportDescField.setText(newVal.getDescription());
-                sportNbJoueursField.setText(String.valueOf(newVal.getNbJoueurs()));
-                sportRolesField.setText(newVal.getRoles() != null ? String.join("\n", newVal.getRoles()) : "");
-                sportStatsField.setText(newVal.getStatistiques() != null ? String.join("\n", newVal.getStatistiques()) : "");
-            }
-        });
-    }
-
-    // --- LOGIQUE CLUB ---
     private void setupClubTable() {
         TableColumn<Club, String> nameCol = new TableColumn<>("Nom");
         nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
         TableColumn<Club, String> typeCol = new TableColumn<>("Type");
         typeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
-
         clubTable.getColumns().addAll(nameCol, typeCol);
-        clubTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
         clubTable.getSelectionModel().selectedItemProperty().addListener((obs, old, newSelection) -> {
             if (newSelection != null) {
                 currentClubId = newSelection.getClubID();
@@ -296,10 +333,24 @@ public class ClubManagementFrame extends Application {
         });
     }
 
+    private void setupSportTable() {
+        TableColumn<TypeSport, String> nomCol = new TableColumn<>("Discipline");
+        nomCol.setCellValueFactory(new PropertyValueFactory<>("nom"));
+        sportTable.getColumns().add(nomCol);
+        sportTable.getSelectionModel().selectedItemProperty().addListener((obs, old, newVal) -> {
+            if (newVal != null) {
+                selectedTypeSport = newVal;
+                sportNomField.setText(newVal.getNom());
+                sportDescField.setText(newVal.getDescription());
+                sportNbJoueursField.setText(String.valueOf(newVal.getNbJoueurs()));
+            }
+        });
+    }
+
     private void handleAddClub() {
         try {
             clubController.createClub(0, clubNameField.getText(), clubDescriptionField.getText(), clubTypeField.getText(), meetingScheduleField.getText(), Integer.parseInt(maxCapacityField.getText()));
-            refreshClubList(); clearClubFields(); clubMessageLabel.setText("Club ajouté !");
+            refreshClubList(); clearClubFields();
         } catch (Exception e) { clubMessageLabel.setText("Erreur : " + e.getMessage()); }
     }
 
@@ -307,7 +358,7 @@ public class ClubManagementFrame extends Application {
         if (currentClubId == 0) return;
         try {
             Club c = new Club(currentClubId, clubNameField.getText(), clubDescriptionField.getText(), clubTypeField.getText(), meetingScheduleField.getText(), Integer.parseInt(maxCapacityField.getText()));
-            clubController.updateClub(c); refreshClubList(); clubMessageLabel.setText("Club mis à jour !");
+            clubController.updateClub(c); refreshClubList();
         } catch (Exception e) { clubMessageLabel.setText("Erreur mise à jour."); }
     }
 
@@ -315,12 +366,8 @@ public class ClubManagementFrame extends Application {
         if (currentClubId == 0) return;
         try {
             clubController.deleteClub(currentClubId);
-            refreshClubList(); clearClubFields(); clubMessageLabel.setText("Club supprimé.");
-        } catch (SQLException e) { clubMessageLabel.setText("Erreur suppression."); }
-    }
-
-    private void refreshClubList() {
-        try { clubTable.setItems(FXCollections.observableArrayList(clubController.getAllClubs())); } catch (SQLException e) { e.printStackTrace(); }
+            refreshClubList(); clearClubFields();
+        } catch (SQLException e) { e.printStackTrace(); }
     }
 
     private void clearClubFields() {
@@ -328,9 +375,26 @@ public class ClubManagementFrame extends Application {
         meetingScheduleField.clear(); maxCapacityField.clear(); currentClubId = 0;
     }
 
-    private void handleLogout(Stage currentStage) {
-        currentStage.close();
-        new LoginFrame().start(new Stage());
+    private void handleAddSport() {
+        try {
+            sportController.handleCreateTypeSport(sportNomField.getText(), sportDescField.getText(),
+                    Integer.parseInt(sportNbJoueursField.getText()), new ArrayList<>(), new ArrayList<>());
+            refreshSportList();
+        } catch (Exception e) { showError("Erreur", "Saisie invalide."); }
+    }
+
+    private void handleUpdateSport() {
+        if (selectedTypeSport == null) return;
+        selectedTypeSport.setNom(sportNomField.getText());
+        selectedTypeSport.setDescription(sportDescField.getText());
+        sportController.handleUpdateTypeSport(selectedTypeSport);
+        refreshSportList();
+    }
+
+    private void handleDeleteSport() {
+        if (selectedTypeSport == null) return;
+        sportController.handleDeleteTypeSport(selectedTypeSport.getId());
+        refreshSportList();
     }
 
     private Button createMenuButton(String text, boolean active) {
@@ -338,11 +402,6 @@ public class ClubManagementFrame extends Application {
         btn.setMaxWidth(Double.MAX_VALUE);
         btn.setStyle(createMenuButtonStyle(active));
         return btn;
-    }
-
-    private void showError(String title, String content) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle(title); alert.setContentText(content); alert.showAndWait();
     }
 
     public static void main(String[] args) { launch(args); }
