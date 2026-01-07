@@ -18,29 +18,33 @@ public class LoginController {
             return;
         }
 
-        // Récupère l'utilisateur complet (avec son rôle, nom, etc.) depuis le DAO
+        // Récupère l'utilisateur complet depuis le DAO
         User user = userDAO.getUserById(id);
 
         // Vérification des identifiants
         if (user != null && user.getPwd().equals(pwd)) {
-            // On informe la vue du succès
+            // ÉTAPE 1 : On informe la vue du succès.
+            // La LoginFrame devra maintenant gérer les différents rôles dans sa méthode showLoginSuccess.
             loginFrame.showLoginSuccess(user);
-
-            // Note : La redirection vers openClubManagementFrame()
-            // est déjà gérée à l'intérieur de loginFrame.showLoginSuccess(user)
-            // dans votre version actuelle de LoginFrame.
         } else {
             loginFrame.showLoginError();
         }
     }
 
     /**
-     * Vérifie si l'utilisateur a les droits d'accès à la gestion des clubs.
-     * Selon vos diagrammes, l'Admin et le Director ont ces droits.
+     * Détermine quel type de tableau de bord l'utilisateur doit voir.
+     */
+    public String getDashboardType(User user) {
+        if (user == null || user.getRole() == null) return "MEMBER";
+
+        return user.getRole().toUpperCase(); // Retourne "ADMIN", "DIRECTOR", "COACH" ou "MEMBER"
+    }
+
+    /**
+     * Vérifie si l'utilisateur a les droits d'accès à la gestion des clubs (Director/Admin).
      */
     public boolean canManageClubs(User user) {
         if (user == null || user.getRole() == null) return false;
-
         String role = user.getRole().toUpperCase();
         return role.equals("ADMIN") || role.equals("DIRECTOR");
     }

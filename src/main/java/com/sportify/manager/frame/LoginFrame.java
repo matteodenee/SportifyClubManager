@@ -7,9 +7,11 @@ import com.sportify.manager.dao.PostgresUserDAO;
 
 import javafx.application.Application;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import java.sql.Connection;
 
@@ -31,142 +33,120 @@ public class LoginFrame extends Application {
         }
         loginController.setLoginFrame(this);
 
-        idField = new TextField();
-        pwdField = new PasswordField();
-        messageLabel = new Label();
+        // --- DESIGN DU CONTAINER PRINCIPAL ---
+        VBox root = new VBox(20);
+        root.setAlignment(Pos.CENTER);
+        root.setPadding(new Insets(40));
+        root.setStyle("-fx-background-color: #2c3e50;"); // Fond sombre comme la sidebar
 
-        Button loginButton = new Button("Login");
+        // --- LOGO OU TITRE ---
+        Label titleLabel = new Label("SPORTIFY");
+        titleLabel.setStyle("-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold; -fx-letter-spacing: 2px;");
+
+        Label subTitle = new Label("Club Management System");
+        subTitle.setStyle("-fx-text-fill: #bdc3c7; -fx-font-size: 14px;");
+
+        // --- FORMULAIRE ---
+        VBox formBox = new VBox(15);
+        formBox.setMaxWidth(300);
+
+        idField = new TextField();
+        idField.setPromptText("Identifiant");
+        idField.setStyle("-fx-background-color: #34495e; -fx-text-fill: white; -fx-prompt-text-fill: #95a5a6; -fx-padding: 10; -fx-background-radius: 5;");
+
+        pwdField = new PasswordField();
+        pwdField.setPromptText("Mot de passe");
+        pwdField.setStyle("-fx-background-color: #34495e; -fx-text-fill: white; -fx-prompt-text-fill: #95a5a6; -fx-padding: 10; -fx-background-radius: 5;");
+
+        Button loginButton = new Button("SE CONNECTER");
+        loginButton.setMaxWidth(Double.MAX_VALUE);
+        loginButton.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 5; -fx-cursor: hand;");
+
+        // Effet de survol pour le bouton
+        loginButton.setOnMouseEntered(e -> loginButton.setStyle("-fx-background-color: #2980b9; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 5;"));
+        loginButton.setOnMouseExited(e -> loginButton.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 5;"));
+
         loginButton.setOnAction(event -> {
-            String id = idField.getText();
-            String pwd = pwdField.getText();
-            loginController.onClick(id, pwd);
+            loginController.onClick(idField.getText(), pwdField.getText());
         });
 
-        GridPane grid = new GridPane();
-        grid.setPadding(new Insets(20));
-        grid.setHgap(10);
-        grid.setVgap(10);
+        messageLabel = new Label();
+        messageLabel.setStyle("-fx-text-fill: #e74c3c; -fx-font-size: 12px;");
 
-        grid.add(new Label("User id:"), 0, 0);
-        grid.add(idField, 1, 0);
-        grid.add(new Label("Password:"), 0, 1);
-        grid.add(pwdField, 1, 1);
-        grid.add(loginButton, 1, 2);
-        grid.add(messageLabel, 1, 3);
+        formBox.getChildren().addAll(idField, pwdField, loginButton, messageLabel);
 
-        Scene scene = new Scene(grid, 350, 180);
-        primaryStage.setTitle("Sportify Club Manager - Login");
+        root.getChildren().addAll(titleLabel, subTitle, formBox);
+
+        Scene scene = new Scene(root, 400, 450);
+        primaryStage.setTitle("Sportify - Login");
+        primaryStage.setResizable(false);
         primaryStage.setScene(scene);
         primaryStage.show();
     }
 
-    // --- LOGIQUE DE REDIRECTION PAR RÔLE ---
+    // --- LOGIQUE DE REDIRECTION ---
     public void showLoginSuccess(User user) {
-        // On s'assure que le rôle est traité de manière insensible à la casse
         String role = user.getRole().toUpperCase();
-
         switch (role) {
-            case "ADMIN":
-                openClubManagementFrame();
-                break;
-
-            case "DIRECTOR":
-                // Maintenant, le directeur va vers sa propre interface
-                openDirectorDashboard(user);
-                break;
-
-            case "MEMBER":
-                openMemberDashboard(user);
-                break;
-
-            case "COACH":
-                messageLabel.setText("Coach space not yet implemented.");
-                break;
-
-            default:
-                messageLabel.setText("Unknown role: " + role);
+            case "ADMIN": openClubManagementFrame(); break;
+            case "DIRECTOR": openDirectorDashboard(user); break;
+            case "MEMBER": openMemberDashboard(user); break;
+            case "COACH": openCoachDashboard(user); break;
+            default: messageLabel.setText("Rôle inconnu : " + role);
         }
     }
 
     public void showLoginError() {
-        messageLabel.setText("Invalid credentials.");
+        messageLabel.setText("Identifiants incorrects.");
     }
 
-    // --- FENÊTRES DE DESTINATION ---
+    // --- OUVERTURE DES DASHBOARDS ---
+    public void openCoachDashboard(User user) {
+        try {
+            CoachDashboardFrame coachFrame = new CoachDashboardFrame(user);
+            coachFrame.start(new Stage());
+            closeCurrentStage();
+        } catch (Exception e) { e.printStackTrace(); }
+    }
 
-    /**
-     * Fenêtre pour ADMIN (Gestion de la structure des clubs)
-     */
     public void openClubManagementFrame() {
         try {
             Connection connection = PostgresUserDAO.getConnection();
             ClubController clubController = new ClubController(connection);
-
             ClubManagementFrame clubManagementFrame = new ClubManagementFrame();
             clubManagementFrame.setClubController(clubController);
-
-            Stage clubStage = new Stage();
-            clubManagementFrame.start(clubStage);
-
+            clubManagementFrame.start(new Stage());
             closeCurrentStage();
-        } catch (Exception e) {
-            e.printStackTrace();
-            messageLabel.setText("Admin UI error: " + e.getMessage());
-        }
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
-    /**
-     * Fenêtre pour DIRECTOR (Gestion des demandes d'adhésion)
-     */
     public void openDirectorDashboard(User user) {
         try {
             Connection connection = PostgresUserDAO.getConnection();
             ClubController clubController = new ClubController(connection);
-
             DirectorDashboardFrame directorFrame = new DirectorDashboardFrame(user);
             directorFrame.setClubController(clubController);
-
-            Stage directorStage = new Stage();
-            directorFrame.start(directorStage);
-
+            directorFrame.start(new Stage());
             closeCurrentStage();
-        } catch (Exception e) {
-            e.printStackTrace();
-            messageLabel.setText("Director UI error: " + e.getMessage());
-        }
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
-    /**
-     * Fenêtre pour MEMBER (Consultation et demandes)
-     */
     public void openMemberDashboard(User user) {
         try {
             Connection connection = PostgresUserDAO.getConnection();
             ClubController clubController = new ClubController(connection);
-
             MemberDashboardFrame memberFrame = new MemberDashboardFrame(user);
             memberFrame.setClubController(clubController);
-
-            Stage memberStage = new Stage();
-            memberFrame.start(memberStage);
-
+            memberFrame.start(new Stage());
             closeCurrentStage();
-        } catch (Exception e) {
-            e.printStackTrace();
-            messageLabel.setText("Member UI error: " + e.getMessage());
-        }
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
-    /**
-     * Utilitaire pour fermer la fenêtre de login
-     */
     private void closeCurrentStage() {
-        if (idField.getScene() != null && idField.getScene().getWindow() != null) {
+        if (idField.getScene() != null) {
             ((Stage) idField.getScene().getWindow()).close();
         }
     }
 
-    public static void main(String[] args) {
-        launch(args);
-    }
+    public static void main(String[] args) { launch(args); }
 }

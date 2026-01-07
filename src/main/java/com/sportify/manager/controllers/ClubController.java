@@ -58,26 +58,31 @@ public class ClubController {
         clubDAO.createMembershipRequest(clubId, userId);
     }
 
-    // --- NOUVELLES MÉTHODES POUR LE DIRECTEUR (UC 8) ---
+    // --- MÉTHODES POUR LE DIRECTEUR (UC 8) ---
 
     /**
-     * Récupère toutes les demandes en attente pour affichage dans le tableau
+     * Récupère TOUTES les demandes (utile pour l'Admin)
      */
     public List<MembershipRequest> getPendingRequests() throws SQLException {
         return clubDAO.getPendingRequests();
     }
 
     /**
+     * NOUVEAU : Récupère uniquement les demandes des clubs gérés par ce directeur
+     */
+    public List<MembershipRequest> getRequestsForDirector(String directorId) throws SQLException {
+        return clubDAO.getPendingRequestsByDirector(directorId);
+    }
+
+    /**
      * Approuve une demande et inscrit automatiquement le membre au club
      */
     public void approveRequest(int requestId) throws SQLException {
-        // 1. Récupérer les infos de la demande
         MembershipRequest request = clubDAO.getRequestById(requestId);
         if (request == null) {
             throw new SQLException("Demande introuvable.");
         }
 
-        // 2. Vérifier la capacité du club (Sécurité métier)
         int current = clubDAO.getCurrentMembers(request.getClubId());
         int max = clubDAO.getMaxCapacity(request.getClubId());
 
@@ -85,15 +90,12 @@ public class ClubController {
             throw new SQLException("Impossible d'approuver : le club '" + request.getClubName() + "' est complet.");
         }
 
-        // 3. Mettre à jour le statut de la demande
         clubDAO.updateRequestStatus(requestId, "APPROVED");
-
-        // 4. Ajouter l'utilisateur à la table des membres
         clubDAO.addMemberToClub(request.getClubId(), request.getUserId());
     }
 
     /**
-     * Refuse une demande sans inscrire le membre
+     * Refuse une demande
      */
     public void rejectRequest(int requestId) throws SQLException {
         clubDAO.updateRequestStatus(requestId, "REJECTED");

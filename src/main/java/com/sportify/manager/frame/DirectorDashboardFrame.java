@@ -34,10 +34,10 @@ public class DirectorDashboardFrame extends Application {
         layout.setPadding(new Insets(25));
         layout.setStyle("-fx-background-color: #f4f7f6;");
 
-        // --- Header ---
-        Label titleLabel = new Label("Tableau de bord Directeur");
+        // --- Header personnalisé ---
+        Label titleLabel = new Label("Espace Direction - " + currentUser.getName());
         titleLabel.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
-        Label subLabel = new Label("Gestion des demandes d'adhésion pour vos clubs");
+        Label subLabel = new Label("Gestion des adhésions pour vos clubs assignés");
 
         // --- Table des demandes ---
         requestTable = new TableView<>();
@@ -45,7 +45,7 @@ public class DirectorDashboardFrame extends Application {
         TableColumn<MembershipRequest, String> userCol = new TableColumn<>("Candidat");
         userCol.setCellValueFactory(new PropertyValueFactory<>("userName"));
 
-        TableColumn<MembershipRequest, String> clubCol = new TableColumn<>("Club visé");
+        TableColumn<MembershipRequest, String> clubCol = new TableColumn<>("Club");
         clubCol.setCellValueFactory(new PropertyValueFactory<>("clubName"));
 
         TableColumn<MembershipRequest, String> statusCol = new TableColumn<>("Statut");
@@ -69,16 +69,20 @@ public class DirectorDashboardFrame extends Application {
         layout.getChildren().addAll(titleLabel, subLabel, requestTable, buttonBox);
 
         Scene scene = new Scene(layout, 700, 500);
-        primaryStage.setTitle("Sportify - Espace Direction");
+        primaryStage.setTitle("Sportify - Tableau de bord Directeur");
         primaryStage.setScene(scene);
 
         refreshTable();
         primaryStage.show();
     }
 
+    /**
+     * MODIFICATION ICI : Filtrage par l'ID du directeur actuel
+     */
     private void refreshTable() {
         try {
-            List<MembershipRequest> requests = clubController.getPendingRequests();
+            // On ne récupère que les demandes liées à ce directeur précis
+            List<MembershipRequest> requests = clubController.getRequestsForDirector(currentUser.getId());
             requestTable.setItems(FXCollections.observableArrayList(requests));
         } catch (SQLException e) {
             showError("Erreur de chargement", e.getMessage());
@@ -100,7 +104,7 @@ public class DirectorDashboardFrame extends Application {
                 clubController.rejectRequest(selected.getRequestId());
                 showInfo("Refusé", "La demande a été rejetée.");
             }
-            refreshTable();
+            refreshTable(); // Rafraîchit la liste filtrée
         } catch (SQLException e) {
             showError("Erreur lors du traitement", e.getMessage());
         }
