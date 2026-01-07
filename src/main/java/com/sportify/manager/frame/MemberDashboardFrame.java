@@ -3,12 +3,13 @@ package com.sportify.manager.frame;
 import com.sportify.manager.controllers.ClubController;
 import com.sportify.manager.controllers.LicenceController;
 import com.sportify.manager.facade.LicenceFacade;
-import com.sportify.manager.facade.TypeSportFacade; // Import de la facade de ton ami
+import com.sportify.manager.facade.TypeSportFacade;
 import com.sportify.manager.services.Club;
 import com.sportify.manager.services.User;
-import com.sportify.manager.services.TypeSport; // Import de l'objet Sport
+import com.sportify.manager.services.TypeSport;
 import com.sportify.manager.services.licence.Licence;
 import com.sportify.manager.services.licence.TypeLicence;
+import com.sportify.manager.services.licence.StatutLicence;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
@@ -32,6 +33,9 @@ public class MemberDashboardFrame extends Application {
     private StackPane contentArea;
     private VBox licenceStatusBox;
 
+    // Simulation pour le flux A1 (Documents manquants)
+    private boolean documentAttached = false;
+
     public MemberDashboardFrame(User user) {
         this.currentUser = user;
         this.licenceController = new LicenceController();
@@ -49,7 +53,6 @@ public class MemberDashboardFrame extends Application {
         BorderPane root = new BorderPane();
         root.setStyle("-fx-background-color: #f4f7f6;");
 
-        // --- SIDEBAR ---
         VBox sidebar = new VBox(15);
         sidebar.setPadding(new Insets(20));
         sidebar.setPrefWidth(220);
@@ -128,7 +131,7 @@ public class MemberDashboardFrame extends Application {
         licenceStatusBox.setPadding(new Insets(15));
         licenceStatusBox.setStyle("-fx-background-color: white; -fx-background-radius: 10; -fx-border-color: #dcdde1;");
 
-        // --- FORMULAIRE DE DEMANDE MIS À JOUR ---
+        // --- FORMULAIRE DE DEMANDE (CRITÈRE 7.1) ---
         VBox formBox = new VBox(15);
         formBox.setPadding(new Insets(20));
         formBox.setStyle("-fx-background-color: #ecf0f1; -fx-background-radius: 10;");
@@ -136,12 +139,10 @@ public class MemberDashboardFrame extends Application {
         Label formTitle = new Label("Nouvelle demande de licence");
         formTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
 
-        // REMPLACEMENT : TextField -> ComboBox de TypeSport
         ComboBox<TypeSport> sportCombo = new ComboBox<>();
         sportCombo.setPromptText("Sélectionnez un sport");
         sportCombo.setMaxWidth(Double.MAX_VALUE);
 
-        // Chargement des sports via la Facade de ton ami
         try {
             List<TypeSport> sports = TypeSportFacade.getInstance().getAllTypeSports();
             sportCombo.setItems(FXCollections.observableArrayList(sports));
@@ -153,6 +154,15 @@ public class MemberDashboardFrame extends Application {
         typeCombo.setPromptText("Type (JOUEUR, COACH...)");
         typeCombo.setMaxWidth(Double.MAX_VALUE);
 
+        // FLUX A1 : Simulation de téléversement
+        Button btnUpload = new Button("📁 Joindre Certificat Médical");
+        styleButton(btnUpload, "#95a5a6");
+        btnUpload.setOnAction(e -> {
+            documentAttached = true;
+            btnUpload.setText("✅ Certificat Médical Joint");
+            btnUpload.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+        });
+
         Button submitBtn = new Button("Envoyer la demande");
         styleButton(submitBtn, "#2ecc71");
 
@@ -160,17 +170,36 @@ public class MemberDashboardFrame extends Application {
             TypeSport selectedSport = sportCombo.getValue();
             TypeLicence selectedType = typeCombo.getValue();
 
-            if (selectedSport != null && selectedType != null) {
+            // Vérification Flux A1
+            if (selectedSport == null || selectedType == null || !documentAttached) {
+                showAlert(Alert.AlertType.ERROR, "Documents manquants", "Veuillez remplir tous les champs et joindre votre certificat.");
+                return;
+            }
+
+            try {
+                // Appel au controller (qui appellera le manager et lancera le flux A2 si besoin)
                 licenceController.onDemandeLicence(selectedSport, selectedType);
+
+                // Reset formulaire
+                documentAttached = false;
+                btnUpload.setText("📁 Joindre Certificat Médical");
+                btnUpload.setStyle("-fx-background-color: #95a5a6; -fx-text-fill: white;");
+
                 refreshLicenceInfo();
-                showAlert(Alert.AlertType.INFORMATION, "Succès", "Votre demande pour le " + selectedSport.getNom() + " a été envoyée.");
-            } else {
-                showAlert(Alert.AlertType.ERROR, "Champs manquants", "Veuillez sélectionner un sport et un type.");
+                showAlert(Alert.AlertType.INFORMATION, "Succès", "Votre demande a été enregistrée (Statut: En attente).");
+            } catch (Exception ex) {
+                // CAPTURE DU FLUX A2 : Licence déjà existante
+                showAlert(Alert.AlertType.ERROR, "Demande refusée", ex.getMessage());
             }
         });
 
-        formBox.getChildren().addAll(formTitle, new Label("Discipline disponible :"), sportCombo, new Label("Type :"), typeCombo, submitBtn);
-        licenceView.getChildren().addAll(title, new Label("Statut de votre licence actuelle :"), licenceStatusBox, new Separator(), formBox);
+        formBox.getChildren().addAll(formTitle, new Label("Discipline :"), sportCombo, new Label("Type :"), typeCombo, btnUpload, submitBtn);
+
+        ScrollPane scrollPane = new ScrollPane(licenceStatusBox);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefHeight(200);
+
+        licenceView.getChildren().addAll(title, new Label("Historique de vos licences (Critère 7.4) :"), scrollPane, new Separator(), formBox);
     }
 
     private void refreshLicenceInfo() {
@@ -178,21 +207,35 @@ public class MemberDashboardFrame extends Application {
         List<Licence> licences = LicenceFacade.getInstance().getLicencesByMembre(currentUser.getId());
 
         if (licences.isEmpty()) {
-            licenceStatusBox.getChildren().add(new Label("Aucune licence enregistrée."));
+            licenceStatusBox.getChildren().add(new Label("Aucune licence enregistrée. Faites votre première demande ci-dessous."));
         } else {
-            Licence l = licences.get(licences.size() - 1);
-            Label statusLabel = new Label("STATUT : " + l.getStatut());
-            statusLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " +
-                    (l.getStatut().toString().equals("ACTIVE") ? "#27ae60" : "#e67e22"));
+            // Affichage de TOUTES les licences (Critère 7.4 du PDF)
+            for (Licence l : licences) {
+                HBox row = new HBox(15);
+                row.setPadding(new Insets(10));
+                row.setStyle("-fx-border-color: #ecf0f1; -fx-border-width: 0 0 1 0; -fx-alignment: CENTER_LEFT;");
 
-            licenceStatusBox.getChildren().addAll(
-                    new Label("ID : " + l.getId()),
-                    // l.getSport() appelle le toString() de TypeSport qui renvoie le nom
-                    new Label("Sport : " + l.getSport()),
-                    new Label("Type : " + l.getTypeLicence()),
-                    statusLabel,
-                    new Label("Note Admin : " + (l.getCommentaireAdmin() == null || l.getCommentaireAdmin().isEmpty() ? "Aucune" : l.getCommentaireAdmin()))
-            );
+                VBox details = new VBox(5);
+                Label sportLabel = new Label(l.getSport().getNom() + " (" + l.getTypeLicence() + ")");
+                sportLabel.setStyle("-fx-font-weight: bold;");
+
+                Label statusLabel = new Label(l.getStatut().toString());
+                String color = "#e67e22"; // Orange par défaut
+                if (l.getStatut() == StatutLicence.ACTIVE) color = "#27ae60";
+                if (l.getStatut() == StatutLicence.REFUSEE) color = "#c0392b";
+                statusLabel.setStyle("-fx-text-fill: " + color + "; -fx-font-weight: bold;");
+
+                details.getChildren().addAll(sportLabel, statusLabel);
+
+                Label dateLabel = new Label("Demandée le : " + l.getDateDemande());
+                dateLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #7f8c8d;");
+
+                Region spacer = new Region();
+                HBox.setHgrow(spacer, Priority.ALWAYS);
+
+                row.getChildren().addAll(details, spacer, dateLabel);
+                licenceStatusBox.getChildren().add(row);
+            }
         }
     }
 

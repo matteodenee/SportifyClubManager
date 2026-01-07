@@ -21,44 +21,55 @@ public class PostgresLicenceDAO extends LicenceDAO {
 
     @Override
     public void insert(Licence licence) {
-        // CORRECTION : On utilise une sous-requête (SELECT id FROM type_sports WHERE nom = ?)
-        // pour récupérer le bon ID actuel à partir du nom du sport (ex: "Football")
-        String sql = "INSERT INTO licences (id, sport_id, type_licence, statut, date_demande, date_debut, date_fin, membre_id, date_decision, commentaire_admin) " +
-                "VALUES (?, (SELECT id FROM type_sports WHERE nom = ? LIMIT 1), ?, ?, ?, ?, ?, ?, ?, ?)";
+        // CORRECTION : On insère uniquement les champs nécessaires à la création (7.1)
+        // Les dates de début/fin/décision sont NULL tant que l'admin n'a pas validé.
+        String sql = "INSERT INTO licences (id, sport_id, type_licence, statut, date_demande, membre_id) " +
+                "VALUES (?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement stmt = this.connection.prepareStatement(sql)) {
             stmt.setString(1, licence.getId());
-
-            // On envoie le NOM du sport au lieu de l'ID risqué
-            stmt.setString(2, licence.getSport().getNom());
-
+            stmt.setInt(2, licence.getSport().getId());
             stmt.setString(3, licence.getTypeLicence().name());
-            stmt.setString(4, licence.getStatut().name());
+            stmt.setString(4, licence.getStatut().name()); // Devrait être 'EN_ATTENTE'
             stmt.setDate(5, licence.getDateDemande());
-            stmt.setDate(6, licence.getDateDebut());
-            stmt.setDate(7, licence.getDateFin());
-            stmt.setString(8, licence.getMembre().getId());
-            stmt.setDate(9, licence.getDateDecision());
-            stmt.setString(10, licence.getCommentaireAdmin());
+            stmt.setString(6, licence.getMembre().getId());
 
-            int affectedRows = stmt.executeUpdate();
-            if (affectedRows == 0) {
-                System.err.println("Échec de l'insertion : Le sport '" + licence.getSport().getNom() + "' n'existe pas en base.");
-            }
+            stmt.executeUpdate();
         } catch (SQLException e) {
-            // C'est ici que l'erreur est attrapée.
-            // Si tu vois "envoyée avec succès" dans la console, c'est que ton Controller n'écoute pas cette erreur.
+            System.err.println("Erreur SQL lors de l'insertion de la licence : " + e.getMessage());
+            // On pourrait jeter une RuntimeException ici pour que le Controller soit au courant
+            throw new RuntimeException("Impossible d'enregistrer la licence en base de données.", e);
+        }
+    }
+
+    @Override
+    public void update(Licence licence) {
+        // CORRECTION : Mise à jour complète pour le processus de validation (7.2)
+        String sql = "UPDATE licences SET statut = ?, date_debut = ?, date_fin = ?, " +
+                "date_decision = ?, commentaire_admin = ? WHERE id = ?";
+
+        try (PreparedStatement stmt = this.connection.prepareStatement(sql)) {
+            stmt.setString(1, licence.getStatut().name());
+            stmt.setDate(2, licence.getDateDebut());
+            stmt.setDate(3, licence.getDateFin());
+            stmt.setDate(4, licence.getDateDecision());
+            stmt.setString(5, licence.getCommentaireAdmin());
+            stmt.setString(6, licence.getId());
+
+            stmt.executeUpdate();
+        } catch (SQLException e) {
             e.printStackTrace();
+            throw new RuntimeException("Erreur lors de la mise à jour de la licence.", e);
         }
     }
 
     @Override
     public Licence findById(String id) {
-        // CORRECTION : JOIN type_sports ts ON l.sport_id = ts.id
         String sql = "SELECT l.*, ts.nom as sport_nom, ts.description as sport_desc, ts.nb_joueurs " +
                 "FROM licences l " +
                 "JOIN type_sports ts ON l.sport_id = ts.id " +
                 "WHERE l.id = ?";
+
         try (PreparedStatement stmt = this.connection.prepareStatement(sql)) {
             stmt.setString(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -69,23 +80,49 @@ public class PostgresLicenceDAO extends LicenceDAO {
     }
 
     @Override
-    public void update(Licence licence) {
-        String sql = "UPDATE licences SET statut = ?, date_debut = ?, date_fin = ?, date_decision = ?, commentaire_admin = ? WHERE id = ?";
+    public List<Licence> findByMembre(String membreId) {
+        List<Licence> licences = new ArrayList<>();
+        String sql = "SELECT l.*, ts.nom as sport_nom, ts.description as sport_desc, ts.nb_joueurs " +
+                "FROM licences l " +
+                "JOIN type_sports ts ON l.sport_id = ts.id " +
+                "WHERE l.membre_id = ?";
+
         try (PreparedStatement stmt = this.connection.prepareStatement(sql)) {
-            stmt.setString(1, licence.getStatut().name());
-            stmt.setDate(2, licence.getDateDebut());
-            stmt.setDate(3, licence.getDateFin());
-            stmt.setDate(4, licence.getDateDecision());
-            stmt.setString(5, licence.getCommentaireAdmin());
-            stmt.setString(6, licence.getId());
-            stmt.executeUpdate();
+            stmt.setString(1, membreId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    licences.add(mapResultSetToLicence(rs));
+                }
+            }
         } catch (SQLException e) { e.printStackTrace(); }
+        return licences;
     }
 
+    @Override
+    public List<Licence> findByStatut(StatutLicence statut) {
+        List<Licence> licences = new ArrayList<>();
+        String sql = "SELECT l.*, ts.nom as sport_nom, ts.description as sport_desc, ts.nb_joueurs " +
+                "FROM licences l " +
+                "JOIN type_sports ts ON l.sport_id = ts.id " +
+                "WHERE l.statut = ?";
+
+        try (PreparedStatement stmt = this.connection.prepareStatement(sql)) {
+            stmt.setString(1, statut.name());
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    licences.add(mapResultSetToLicence(rs));
+                }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return licences;
+    }
+
+    /**
+     * Helper pour transformer une ligne SQL en objet Licence (7.4 & 7.5)
+     */
     private Licence mapResultSetToLicence(ResultSet rs) throws SQLException {
-        AbstractFactory f = AbstractFactory.getFactory();
-        UserDAO udao = f.createUserDAO();
-        User user = udao.getUserById(rs.getString("membre_id"));
+        // On récupère le membre via le UserDAO (On suppose que PostgresUserDAO.getInstance() existe)
+        User membre = PostgresUserDAO.getInstance().getUserById(rs.getString("membre_id"));
 
         TypeSport sport = new TypeSport(
                 rs.getInt("sport_id"),
@@ -102,45 +139,11 @@ public class PostgresLicenceDAO extends LicenceDAO {
                 rs.getDate("date_demande"),
                 rs.getDate("date_debut"),
                 rs.getDate("date_fin"),
-                user,
-                null,
+                membre,
+                null, // Les documents pourraient être chargés dans une table séparée si besoin
                 rs.getDate("date_decision"),
                 rs.getString("commentaire_admin")
         );
-    }
-
-    @Override
-    public List<Licence> findByMembre(String membreId) {
-        List<Licence> licences = new ArrayList<>();
-        // CORRECTION : JOIN type_sports ts ON l.sport_id = ts.id
-        String sql = "SELECT l.*, ts.nom as sport_nom, ts.description as sport_desc, ts.nb_joueurs " +
-                "FROM licences l " +
-                "JOIN type_sports ts ON l.sport_id = ts.id " +
-                "WHERE l.membre_id = ?";
-        try (PreparedStatement stmt = this.connection.prepareStatement(sql)) {
-            stmt.setString(1, membreId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) licences.add(mapResultSetToLicence(rs));
-            }
-        } catch (SQLException e) { e.printStackTrace(); }
-        return licences;
-    }
-
-    @Override
-    public List<Licence> findByStatut(StatutLicence statut) {
-        List<Licence> licences = new ArrayList<>();
-        // CORRECTION : JOIN type_sports ts ON l.sport_id = ts.id
-        String sql = "SELECT l.*, ts.nom as sport_nom, ts.description as sport_desc, ts.nb_joueurs " +
-                "FROM licences l " +
-                "JOIN type_sports ts ON l.sport_id = ts.id " +
-                "WHERE l.statut = ?";
-        try (PreparedStatement stmt = this.connection.prepareStatement(sql)) {
-            stmt.setString(1, statut.name());
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) licences.add(mapResultSetToLicence(rs));
-            }
-        } catch (SQLException e) { e.printStackTrace(); }
-        return licences;
     }
 
     @Override
