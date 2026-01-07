@@ -1,91 +1,68 @@
 package com.sportify.manager.dao;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import com.sportify.manager.services.User;
-import java.sql.*;
 
+public class PostgresUserDAO implements UserDAO {
 
+    private static final String URL = "jdbc:postgresql://localhost:5432/sportify_db";
+    private static final String USER = "postgres";
+    private static final String PASSWORD = "password";
 
-public class PostgresUserDAO extends UserDAO {
-
-    // Paramètres de connexion par défaut
-    private static final String DEFAULT_URL = "jdbc:postgresql://162.38.112.60:5432/erben-db";
-    private static final String DEFAULT_USER = "rasim.erben";
-    private static final String DEFAULT_PASSWORD = "erben2024!";
-
-    private final String url;
-    private final String user;
-    private final String password;
-
-    // Instance unique de PostgresUserDAO
-    private static PostgresUserDAO instance;
-
-    // Connexion à la base de données (partagée entre toutes les demandes)
-    private static Connection connection;
-
-    // Constructeur privé pour empêcher la création d'instances en dehors de la classe
-    private PostgresUserDAO() {
-        this.url = (System.getenv("DB_URL") != null && !System.getenv("DB_URL").isEmpty()) ? System.getenv("DB_URL") : DEFAULT_URL;
-        this.user = (System.getenv("DB_USER") != null && !System.getenv("DB_USER").isEmpty()) ? System.getenv("DB_USER") : DEFAULT_USER;
-        this.password = (System.getenv("DB_PASSWORD") != null && !System.getenv("DB_PASSWORD").isEmpty()) ? System.getenv("DB_PASSWORD") : DEFAULT_PASSWORD;
-
+    public PostgresUserDAO() {
         try {
-            // Charger le driver PostgreSQL
             Class.forName("org.postgresql.Driver");
-            // Si la connexion n'existe pas encore, la créer
-            if (connection == null || connection.isClosed()) {
-                connection = DriverManager.getConnection(url, user, password);
-            }
-        } catch (ClassNotFoundException | SQLException e) {
-            System.err.println("Erreur lors de la connexion à PostgreSQL: " + e.getMessage());
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
     }
 
-    // Méthode publique pour obtenir l'instance unique de PostgresUserDAO (Singleton)
-    public static synchronized PostgresUserDAO getInstance() {
-        if (instance == null) {
-            instance = new PostgresUserDAO();
-        }
-        return instance;
+    private Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(URL, USER, PASSWORD);
     }
 
     @Override
     public User getUserById(String id) {
-        if (id == null || id.isEmpty()) {
-            return null;
-        }
+        String sql = "SELECT id, name, password FROM users WHERE id = ?";
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-        String sql = "SELECT id, password FROM users WHERE id = ?";
+            pstmt.setString(1, id);
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, id);
-
-            try (ResultSet rs = stmt.executeQuery()) {
+            try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    String userId = rs.getString("id");
-                    String pwd = rs.getString("password");
-                    return new User(userId, pwd);
+                    return new User(
+                            rs.getString("id"),
+                            rs.getString("name"),
+                            rs.getString("password"));
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Erreur de base de données lors de la récupération de l'utilisateur: " + e.getMessage());
+            e.printStackTrace();
         }
-
         return null;
     }
 
-    // Méthode pour obtenir la connexion partagée
-    public static Connection getConnection() {
-        return connection;
-    }
+    @Override
+    public boolean create(User user) {
+        String sql = "INSERT INTO users (id, name, password) VALUES (?, ?, ?)";
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-    // Méthode pour fermer la connexion à la base de données
-    public static void closeConnection() {
-        try {
-            if (connection != null && !connection.isClosed()) {
-                connection.close();
-            }
+            pstmt.setString(1, user.getId());
+            pstmt.setString(2, user.getName());
+            pstmt.setString(3, user.getPassword());
+
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
+
         } catch (SQLException e) {
-            System.err.println("Erreur lors de la fermeture de la connexion : " + e.getMessage());
+            e.printStackTrace();
+            return false;
         }
     }
 }

@@ -1,15 +1,17 @@
 package com.sportify.manager.frame;
 
 import com.sportify.manager.controllers.LoginController;
+import com.sportify.manager.controllers.RegisterController;
+import com.sportify.manager.frame.RegisterFrame;
 import com.sportify.manager.services.User;
 import javafx.application.Application;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
-
-
 
 public class LoginFrame extends Application {
     // fenetre javafx pour la page login
@@ -43,6 +45,24 @@ public class LoginFrame extends Application {
             loginController.onClick(id, pwd);
         });
 
+        Button registerButton = new Button("Register");
+        registerButton.setOnAction(event -> {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/RegisterView.fxml"));
+                Parent root = loader.load();
+
+                RegisterFrame registerFrame = loader.getController();
+                registerFrame.setLoginFrame(this);
+                registerFrame.setStage(primaryStage);
+                registerFrame.setRegisterController(new RegisterController());
+
+                Scene scene = new Scene(root, 450, 360);
+                primaryStage.setScene(scene);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+
         GridPane grid = new GridPane();
         grid.setPadding(new Insets(20));
         grid.setHgap(10);
@@ -53,9 +73,10 @@ public class LoginFrame extends Application {
         grid.add(new Label("Password:"), 0, 1);
         grid.add(pwdField, 1, 1);
         grid.add(loginButton, 1, 2);
+        grid.add(registerButton, 2, 2);
         grid.add(messageLabel, 1, 3);
 
-        Scene scene = new Scene(grid, 350, 180);
+        Scene scene = new Scene(grid, 400, 250);
         primaryStage.setTitle("Sportify Club Manager - Login");
         primaryStage.setScene(scene);
         primaryStage.show();

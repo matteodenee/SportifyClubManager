@@ -9,6 +9,10 @@ public abstract class AbstractFactory {
 
     protected AbstractFactory() {}
 
+    /**
+     * Singleton accessor returning the concrete factory.
+     * @return factory instance
+     */
     public static AbstractFactory createFactory() {
         if (instance == null) {
             instance = new PostgresFactory();
@@ -16,5 +20,9 @@ public abstract class AbstractFactory {
         return instance;
     }
 
+    /**
+     * Creates a UserDAO linked to the current persistence backend.
+     * @return DAO instance
+     */
     public abstract UserDAO createUserDAO();
 }
