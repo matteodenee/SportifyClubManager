@@ -3,7 +3,8 @@ package com.sportify.manager.persistence;
 import com.sportify.manager.dao.UserDAO;
 import com.sportify.manager.dao.ClubDAO;
 import com.sportify.manager.dao.StatDAO;
-import com.sportify.manager.dao.LicenceDAO; // Ajout de l'import
+import com.sportify.manager.dao.LicenceDAO;
+import com.sportify.manager.dao.TypeSportDAO; // Ajout de l'import pour le module sport
 
 public abstract class AbstractFactory {
 
@@ -11,7 +12,7 @@ public abstract class AbstractFactory {
 
     protected AbstractFactory() {}
 
-    public static AbstractFactory getFactory() { // Note: j'ai utilisé getFactory pour la cohérence
+    public static AbstractFactory getFactory() {
         if (instance == null) {
             instance = new PostgresFactory();
         }
@@ -21,5 +22,6 @@ public abstract class AbstractFactory {
     public abstract UserDAO createUserDAO();
     public abstract ClubDAO createClubDAO();
     public abstract StatDAO createStatDAO();
-    public abstract LicenceDAO createLicenceDAO(); // Nouvelle méthode
+    public abstract LicenceDAO createLicenceDAO();
+    public abstract TypeSportDAO createTypeSportDAO();
 }

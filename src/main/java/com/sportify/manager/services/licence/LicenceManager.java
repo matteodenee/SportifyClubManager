@@ -12,7 +12,6 @@ public class LicenceManager {
         // Constructeur privé pour le Singleton
     }
 
-    // Implémentation du Singleton
     public static synchronized LicenceManager getLicenceManager() {
         if (instance == null) {
             instance = new LicenceManager();
@@ -20,14 +19,20 @@ public class LicenceManager {
         return instance;
     }
 
-    // PERSISTANCE : Enregistre une nouvelle demande
+    /**
+     * PERSISTANCE : Enregistre une nouvelle demande.
+     * Note : L'objet licence contient maintenant un TypeSport complet.
+     */
     public void demanderLicence(Licence licence) {
+        // On pourrait ajouter ici une vérification métier (ex: le membre a-t-il déjà une licence active pour ce sport ?)
         AbstractFactory f = AbstractFactory.getFactory();
-        LicenceDAO licencedao = f.createLicenceDAO(); // Nom corrigé
+        LicenceDAO licencedao = f.createLicenceDAO();
         licencedao.insert(licence);
     }
 
-    // BUSINESS LOGIC : Traitement par le directeur
+    /**
+     * BUSINESS LOGIC : Traitement par le directeur ou l'admin.
+     */
     public void validerLicence(String licenceId, boolean accepter, String commentaire) {
         AbstractFactory f = AbstractFactory.getFactory();
         LicenceDAO licencedao = f.createLicenceDAO();
@@ -35,14 +40,16 @@ public class LicenceManager {
         Licence licence = licencedao.findById(licenceId);
         if (licence != null) {
             licence.setCommentaireAdmin(commentaire);
+            licence.setDateDecision(new java.sql.Date(System.currentTimeMillis()));
 
             if (accepter) {
                 licence.setStatut(StatutLicence.ACTIVE);
+                // On pourrait ici initialiser les dates de début et fin par défaut
+                licence.setDateDebut(new java.sql.Date(System.currentTimeMillis()));
             } else {
                 licence.setStatut(StatutLicence.REFUSEE);
             }
 
-            // On n'oublie pas de sauvegarder la modification en base !
             licencedao.update(licence);
         }
     }

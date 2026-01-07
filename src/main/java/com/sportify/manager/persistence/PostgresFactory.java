@@ -11,30 +11,35 @@ public class PostgresFactory extends AbstractFactory {
 
     @Override
     public UserDAO createUserDAO() {
-        // Utilise ta méthode Singleton existante
         return PostgresUserDAO.getInstance();
     }
 
     @Override
     public ClubDAO createClubDAO() {
-        // Récupère la connexion partagée via PostgresUserDAO
         Connection connection = PostgresUserDAO.getConnection();
         return new PostgresClubDAO(connection);
     }
 
     @Override
     public StatDAO createStatDAO() {
-        // Récupère la connexion partagée
         Connection connection = PostgresUserDAO.getConnection();
         return new PostgresStatDAO(connection);
     }
 
     @Override
     public LicenceDAO createLicenceDAO() {
-        // Intégration du module de ton ami
-        // Récupère la connexion partagée
         Connection connection = PostgresUserDAO.getConnection();
-        // Retourne l'implémentation concrète pour PostgreSQL
         return new PostgresLicenceDAO(connection);
+    }
+
+    /**
+     * Nouvelle implémentation pour fabriquer le DAO de ton ami
+     */
+    @Override
+    public TypeSportDAO createTypeSportDAO() {
+        // On récupère la connexion partagée comme pour les autres DAOs
+        Connection connection = PostgresUserDAO.getConnection();
+        // On retourne l'implémentation concrète de ton ami
+        return new PostgresTypeSportDAO(connection);
     }
 }

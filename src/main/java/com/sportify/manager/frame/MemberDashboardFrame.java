@@ -1,8 +1,14 @@
 package com.sportify.manager.frame;
 
 import com.sportify.manager.controllers.ClubController;
+import com.sportify.manager.controllers.LicenceController;
+import com.sportify.manager.facade.LicenceFacade;
+import com.sportify.manager.facade.TypeSportFacade; // Import de la facade de ton ami
 import com.sportify.manager.services.Club;
 import com.sportify.manager.services.User;
+import com.sportify.manager.services.TypeSport; // Import de l'objet Sport
+import com.sportify.manager.services.licence.Licence;
+import com.sportify.manager.services.licence.TypeLicence;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
@@ -17,11 +23,19 @@ import java.util.List;
 
 public class MemberDashboardFrame extends Application {
     private ClubController clubController;
+    private LicenceController licenceController;
     private User currentUser;
+
     private TableView<Club> clubTable;
+    private VBox clubView;
+    private VBox licenceView;
+    private StackPane contentArea;
+    private VBox licenceStatusBox;
 
     public MemberDashboardFrame(User user) {
         this.currentUser = user;
+        this.licenceController = new LicenceController();
+        this.licenceController.setCurrentUser(user);
     }
 
     public void setClubController(ClubController controller) {
@@ -35,7 +49,7 @@ public class MemberDashboardFrame extends Application {
         BorderPane root = new BorderPane();
         root.setStyle("-fx-background-color: #f4f7f6;");
 
-        // --- SIDEBAR (Identité Sportify) ---
+        // --- SIDEBAR ---
         VBox sidebar = new VBox(15);
         sidebar.setPadding(new Insets(20));
         sidebar.setPrefWidth(220);
@@ -45,82 +59,155 @@ public class MemberDashboardFrame extends Application {
         menuLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px;");
 
         Button btnClubs = createMenuButton("🔍 Parcourir Clubs", true);
+        Button btnLicence = createMenuButton("📜 Ma Licence", false);
         Button btnLogout = createMenuButton("🚪 Déconnexion", false);
 
-        sidebar.getChildren().addAll(menuLabel, new Separator(), btnClubs, btnLogout);
+        sidebar.getChildren().addAll(menuLabel, new Separator(), btnClubs, btnLicence, btnLogout);
 
-        // --- MAIN CONTENT ---
-        VBox mainContent = new VBox(20);
-        mainContent.setPadding(new Insets(30));
+        createClubView();
+        createLicenceView();
 
-        // En-tête de bienvenue
-        VBox header = new VBox(5);
-        Label welcomeLabel = new Label("Bonjour, " + currentUser.getName());
-        welcomeLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #34495e;");
-        Label subLabel = new Label("Trouvez et rejoignez les clubs de sport qui vous passionnent.");
-        subLabel.setStyle("-fx-text-fill: #7f8c8d;");
-        header.getChildren().addAll(welcomeLabel, subLabel);
+        contentArea = new StackPane(clubView, licenceView);
+        licenceView.setVisible(false);
 
-        // Tableau des clubs
-        clubTable = new TableView<>();
-        setupTable();
-
-        // Zone d'action (Bouton rejoindre)
-        HBox actionArea = new HBox(15);
-        actionArea.setAlignment(Pos.CENTER_RIGHT);
-
-        Button joinButton = new Button("Demander à rejoindre");
-        styleButton(joinButton, "#3498db");
-
-        joinButton.setOnAction(e -> {
-            Club selected = clubTable.getSelectionModel().getSelectedItem();
-            if (selected != null) {
-                handleJoinRequest(selected);
-            } else {
-                showAlert(Alert.AlertType.WARNING, "Sélection requise", "Veuillez choisir un club dans la liste.");
-            }
+        btnClubs.setOnAction(e -> {
+            switchView(btnClubs, btnLicence);
+            clubView.setVisible(true);
+            licenceView.setVisible(false);
+            refreshList();
         });
 
-        actionArea.getChildren().add(joinButton);
+        btnLicence.setOnAction(e -> {
+            switchView(btnLicence, btnClubs);
+            clubView.setVisible(false);
+            licenceView.setVisible(true);
+            refreshLicenceInfo();
+        });
 
-        mainContent.getChildren().addAll(header, clubTable, actionArea);
-        VBox.setVgrow(clubTable, Priority.ALWAYS);
-
-        root.setLeft(sidebar);
-        root.setCenter(mainContent);
-
-        // Action déconnexion
         btnLogout.setOnAction(e -> handleLogout(primaryStage));
 
-        Scene scene = new Scene(root, 900, 600);
+        root.setLeft(sidebar);
+        root.setCenter(contentArea);
+
+        Scene scene = new Scene(root, 950, 650);
         primaryStage.setTitle("Sportify - Espace Membre");
         primaryStage.setScene(scene);
-
         refreshList();
         primaryStage.show();
     }
 
-    private void setupTable() {
-        TableColumn<Club, String> nameCol = new TableColumn<>("Nom du Club");
-        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+    private void createClubView() {
+        clubView = new VBox(20);
+        clubView.setPadding(new Insets(30));
+        Label welcomeLabel = new Label("Bonjour, " + currentUser.getName());
+        welcomeLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #34495e;");
 
-        TableColumn<Club, String> typeCol = new TableColumn<>("Discipline");
-        typeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
+        clubTable = new TableView<>();
+        setupClubTable();
 
-        TableColumn<Club, Integer> countCol = new TableColumn<>("Membres Actuels");
-        countCol.setCellValueFactory(new PropertyValueFactory<>("currentMemberCount"));
+        Button joinButton = new Button("Demander à rejoindre");
+        styleButton(joinButton, "#3498db");
+        joinButton.setOnAction(e -> {
+            Club selected = clubTable.getSelectionModel().getSelectedItem();
+            if (selected != null) handleJoinRequest(selected);
+            else showAlert(Alert.AlertType.WARNING, "Sélection requise", "Veuillez choisir un club.");
+        });
 
-        clubTable.getColumns().addAll(nameCol, typeCol, countCol);
-        clubTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        clubTable.setStyle("-fx-background-radius: 5;");
+        clubView.getChildren().addAll(welcomeLabel, new Label("Clubs disponibles :"), clubTable, joinButton);
+        VBox.setVgrow(clubTable, Priority.ALWAYS);
     }
 
-    private void handleLogout(Stage currentStage) {
-        currentStage.close();
-        LoginFrame loginFrame = new LoginFrame();
+    private void createLicenceView() {
+        licenceView = new VBox(20);
+        licenceView.setPadding(new Insets(30));
+
+        Label title = new Label("Ma Licence Sportive");
+        title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+
+        licenceStatusBox = new VBox(10);
+        licenceStatusBox.setPadding(new Insets(15));
+        licenceStatusBox.setStyle("-fx-background-color: white; -fx-background-radius: 10; -fx-border-color: #dcdde1;");
+
+        // --- FORMULAIRE DE DEMANDE MIS À JOUR ---
+        VBox formBox = new VBox(15);
+        formBox.setPadding(new Insets(20));
+        formBox.setStyle("-fx-background-color: #ecf0f1; -fx-background-radius: 10;");
+
+        Label formTitle = new Label("Nouvelle demande de licence");
+        formTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
+
+        // REMPLACEMENT : TextField -> ComboBox de TypeSport
+        ComboBox<TypeSport> sportCombo = new ComboBox<>();
+        sportCombo.setPromptText("Sélectionnez un sport");
+        sportCombo.setMaxWidth(Double.MAX_VALUE);
+
+        // Chargement des sports via la Facade de ton ami
         try {
-            loginFrame.start(new Stage());
-        } catch (Exception e) { e.printStackTrace(); }
+            List<TypeSport> sports = TypeSportFacade.getInstance().getAllTypeSports();
+            sportCombo.setItems(FXCollections.observableArrayList(sports));
+        } catch (Exception e) {
+            System.err.println("Erreur chargement sports : " + e.getMessage());
+        }
+
+        ComboBox<TypeLicence> typeCombo = new ComboBox<>(FXCollections.observableArrayList(TypeLicence.values()));
+        typeCombo.setPromptText("Type (JOUEUR, COACH...)");
+        typeCombo.setMaxWidth(Double.MAX_VALUE);
+
+        Button submitBtn = new Button("Envoyer la demande");
+        styleButton(submitBtn, "#2ecc71");
+
+        submitBtn.setOnAction(e -> {
+            TypeSport selectedSport = sportCombo.getValue();
+            TypeLicence selectedType = typeCombo.getValue();
+
+            if (selectedSport != null && selectedType != null) {
+                licenceController.onDemandeLicence(selectedSport, selectedType);
+                refreshLicenceInfo();
+                showAlert(Alert.AlertType.INFORMATION, "Succès", "Votre demande pour le " + selectedSport.getNom() + " a été envoyée.");
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Champs manquants", "Veuillez sélectionner un sport et un type.");
+            }
+        });
+
+        formBox.getChildren().addAll(formTitle, new Label("Discipline disponible :"), sportCombo, new Label("Type :"), typeCombo, submitBtn);
+        licenceView.getChildren().addAll(title, new Label("Statut de votre licence actuelle :"), licenceStatusBox, new Separator(), formBox);
+    }
+
+    private void refreshLicenceInfo() {
+        licenceStatusBox.getChildren().clear();
+        List<Licence> licences = LicenceFacade.getInstance().getLicencesByMembre(currentUser.getId());
+
+        if (licences.isEmpty()) {
+            licenceStatusBox.getChildren().add(new Label("Aucune licence enregistrée."));
+        } else {
+            Licence l = licences.get(licences.size() - 1);
+            Label statusLabel = new Label("STATUT : " + l.getStatut());
+            statusLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " +
+                    (l.getStatut().toString().equals("ACTIVE") ? "#27ae60" : "#e67e22"));
+
+            licenceStatusBox.getChildren().addAll(
+                    new Label("ID : " + l.getId()),
+                    // l.getSport() appelle le toString() de TypeSport qui renvoie le nom
+                    new Label("Sport : " + l.getSport()),
+                    new Label("Type : " + l.getTypeLicence()),
+                    statusLabel,
+                    new Label("Note Admin : " + (l.getCommentaireAdmin() == null || l.getCommentaireAdmin().isEmpty() ? "Aucune" : l.getCommentaireAdmin()))
+            );
+        }
+    }
+
+    private void setupClubTable() {
+        TableColumn<Club, String> nameCol = new TableColumn<>("Nom du Club");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+        TableColumn<Club, String> typeCol = new TableColumn<>("Discipline");
+        typeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
+        clubTable.getColumns().addAll(nameCol, typeCol);
+        clubTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+    }
+
+    private void switchView(Button active, Button inactive) {
+        active.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-alignment: CENTER_LEFT; -fx-cursor: hand;");
+        inactive.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT; -fx-cursor: hand;");
     }
 
     private void refreshList() {
@@ -135,19 +222,22 @@ public class MemberDashboardFrame extends Application {
     private void handleJoinRequest(Club club) {
         try {
             clubController.requestToJoinClub(club.getClubID(), currentUser.getId());
-            showAlert(Alert.AlertType.INFORMATION, "Succès", "Votre demande pour rejoindre '" + club.getName() + "' a été envoyée !");
+            showAlert(Alert.AlertType.INFORMATION, "Succès", "Demande envoyée pour " + club.getName());
         } catch (SQLException e) {
-            showAlert(Alert.AlertType.ERROR, "Action impossible", e.getMessage());
+            showAlert(Alert.AlertType.ERROR, "Erreur", e.getMessage());
         }
     }
 
-    // --- UTILITAIRES DESIGN ---
+    private void handleLogout(Stage currentStage) {
+        currentStage.close();
+        new LoginFrame().start(new Stage());
+    }
+
     private Button createMenuButton(String text, boolean active) {
         Button btn = new Button(text);
         btn.setMaxWidth(Double.MAX_VALUE);
         btn.setPadding(new Insets(10));
-        String baseStyle = "-fx-background-color: " + (active ? "#3498db" : "transparent") + "; -fx-text-fill: white; -fx-alignment: CENTER_LEFT; -fx-cursor: hand;";
-        btn.setStyle(baseStyle);
+        btn.setStyle("-fx-background-color: " + (active ? "#3498db" : "transparent") + "; -fx-text-fill: white; -fx-alignment: CENTER_LEFT; -fx-cursor: hand;");
         return btn;
     }
 
@@ -160,9 +250,6 @@ public class MemberDashboardFrame extends Application {
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(content);
-        alert.getDialogPane().setStyle("-fx-font-family: 'Segoe UI';");
         alert.showAndWait();
     }
-
-    public static void main(String[] args) { launch(args); }
 }

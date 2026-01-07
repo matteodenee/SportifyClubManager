@@ -1,6 +1,7 @@
 package com.sportify.manager.dao;
 
 import com.sportify.manager.services.User;
+import com.sportify.manager.services.TypeSport;
 import com.sportify.manager.services.licence.Licence;
 import com.sportify.manager.services.licence.StatutLicence;
 import com.sportify.manager.services.licence.TypeLicence;
@@ -14,17 +15,23 @@ public class PostgresLicenceDAO extends LicenceDAO {
 
     private final Connection connection;
 
-    // AJOUT DU CONSTRUCTEUR : C'est ce qui manquait pour la Factory
     public PostgresLicenceDAO(Connection connection) {
         this.connection = connection;
     }
 
     @Override
     public void insert(Licence licence) {
-        String sql = "INSERT INTO licences (id, sport, type_licence, statut, date_demande, date_debut, date_fin, membre_id, date_decision, commentaire_admin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        // CORRECTION : On utilise une sous-requête (SELECT id FROM type_sports WHERE nom = ?)
+        // pour récupérer le bon ID actuel à partir du nom du sport (ex: "Football")
+        String sql = "INSERT INTO licences (id, sport_id, type_licence, statut, date_demande, date_debut, date_fin, membre_id, date_decision, commentaire_admin) " +
+                "VALUES (?, (SELECT id FROM type_sports WHERE nom = ? LIMIT 1), ?, ?, ?, ?, ?, ?, ?, ?)";
+
         try (PreparedStatement stmt = this.connection.prepareStatement(sql)) {
             stmt.setString(1, licence.getId());
-            stmt.setString(2, licence.getSport());
+
+            // On envoie le NOM du sport au lieu de l'ID risqué
+            stmt.setString(2, licence.getSport().getNom());
+
             stmt.setString(3, licence.getTypeLicence().name());
             stmt.setString(4, licence.getStatut().name());
             stmt.setDate(5, licence.getDateDemande());
@@ -33,15 +40,25 @@ public class PostgresLicenceDAO extends LicenceDAO {
             stmt.setString(8, licence.getMembre().getId());
             stmt.setDate(9, licence.getDateDecision());
             stmt.setString(10, licence.getCommentaireAdmin());
-            stmt.executeUpdate();
+
+            int affectedRows = stmt.executeUpdate();
+            if (affectedRows == 0) {
+                System.err.println("Échec de l'insertion : Le sport '" + licence.getSport().getNom() + "' n'existe pas en base.");
+            }
         } catch (SQLException e) {
+            // C'est ici que l'erreur est attrapée.
+            // Si tu vois "envoyée avec succès" dans la console, c'est que ton Controller n'écoute pas cette erreur.
             e.printStackTrace();
         }
     }
 
     @Override
     public Licence findById(String id) {
-        String sql = "SELECT * FROM licences WHERE id = ?";
+        // CORRECTION : JOIN type_sports ts ON l.sport_id = ts.id
+        String sql = "SELECT l.*, ts.nom as sport_nom, ts.description as sport_desc, ts.nb_joueurs " +
+                "FROM licences l " +
+                "JOIN type_sports ts ON l.sport_id = ts.id " +
+                "WHERE l.id = ?";
         try (PreparedStatement stmt = this.connection.prepareStatement(sql)) {
             stmt.setString(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -66,14 +83,20 @@ public class PostgresLicenceDAO extends LicenceDAO {
     }
 
     private Licence mapResultSetToLicence(ResultSet rs) throws SQLException {
-        // Correction ici : on utilise le nom exact de ta méthode dans AbstractFactory
-        AbstractFactory f = AbstractFactory.getFactory(); // CORRECT
+        AbstractFactory f = AbstractFactory.getFactory();
         UserDAO udao = f.createUserDAO();
         User user = udao.getUserById(rs.getString("membre_id"));
 
+        TypeSport sport = new TypeSport(
+                rs.getInt("sport_id"),
+                rs.getString("sport_nom"),
+                rs.getString("sport_desc"),
+                rs.getInt("nb_joueurs")
+        );
+
         return new Licence(
                 rs.getString("id"),
-                rs.getString("sport"),
+                sport,
                 TypeLicence.valueOf(rs.getString("type_licence")),
                 StatutLicence.valueOf(rs.getString("statut")),
                 rs.getDate("date_demande"),
@@ -89,7 +112,11 @@ public class PostgresLicenceDAO extends LicenceDAO {
     @Override
     public List<Licence> findByMembre(String membreId) {
         List<Licence> licences = new ArrayList<>();
-        String sql = "SELECT * FROM licences WHERE membre_id = ?";
+        // CORRECTION : JOIN type_sports ts ON l.sport_id = ts.id
+        String sql = "SELECT l.*, ts.nom as sport_nom, ts.description as sport_desc, ts.nb_joueurs " +
+                "FROM licences l " +
+                "JOIN type_sports ts ON l.sport_id = ts.id " +
+                "WHERE l.membre_id = ?";
         try (PreparedStatement stmt = this.connection.prepareStatement(sql)) {
             stmt.setString(1, membreId);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -102,7 +129,11 @@ public class PostgresLicenceDAO extends LicenceDAO {
     @Override
     public List<Licence> findByStatut(StatutLicence statut) {
         List<Licence> licences = new ArrayList<>();
-        String sql = "SELECT * FROM licences WHERE statut = ?";
+        // CORRECTION : JOIN type_sports ts ON l.sport_id = ts.id
+        String sql = "SELECT l.*, ts.nom as sport_nom, ts.description as sport_desc, ts.nb_joueurs " +
+                "FROM licences l " +
+                "JOIN type_sports ts ON l.sport_id = ts.id " +
+                "WHERE l.statut = ?";
         try (PreparedStatement stmt = this.connection.prepareStatement(sql)) {
             stmt.setString(1, statut.name());
             try (ResultSet rs = stmt.executeQuery()) {

@@ -39,23 +39,34 @@ public class PostgresUserDAO extends UserDAO {
     }
 
     /**
-     * NOUVELLE MÉTHODE : Récupère le club_id associé à un coach.
-     * Basé sur la table 'members' où le rôle est 'COACH'.
+     * NOUVELLE MÉTHODE : Enregistre un nouvel utilisateur en base de données.
      */
-    public int getClubIdByCoach(String coachId) {
-        String sql = "SELECT clubid FROM members WHERE userid = ? AND role_in_club = 'COACH'";
+    @Override
+    public void registerUser(User user) throws SQLException {
+        // On aligne la requête SQL sur l'ordre logique : ID, Password, Name, Email, Role
+        String sql = "INSERT INTO users (id, password, name, email, role) VALUES (?, ?, ?, ?, ?)";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, coachId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt("clubid");
-                }
-            }
+            // Index 1 : ID
+            stmt.setString(1, user.getId());
+
+            // Index 2 : Password (Vérifie bien que user.getPwd() renvoie le mot de passe !)
+            stmt.setString(2, user.getPwd());
+
+            // Index 3 : Name
+            stmt.setString(3, user.getName());
+
+            // Index 4 : Email
+            stmt.setString(4, user.getEmail());
+
+            // Index 5 : Role
+            stmt.setString(5, user.getRole());
+
+            stmt.executeUpdate();
         } catch (SQLException e) {
-            System.err.println("Erreur lors de la récupération du club du coach: " + e.getMessage());
+            System.err.println("Erreur SQL lors de l'enregistrement de l'utilisateur: " + e.getMessage());
+            throw e;
         }
-        return -1; // Retourne -1 si aucun club n'est trouvé
     }
 
     @Override
@@ -85,6 +96,21 @@ public class PostgresUserDAO extends UserDAO {
         }
 
         return null;
+    }
+
+    // --- AUTRES MÉTHODES EXISTANTES ---
+
+    public int getClubIdByCoach(String coachId) {
+        String sql = "SELECT clubid FROM members WHERE userid = ? AND role_in_club = 'COACH'";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, coachId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) return rs.getInt("clubid");
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur lors de la récupération du club du coach: " + e.getMessage());
+        }
+        return -1;
     }
 
     public static Connection getConnection() {

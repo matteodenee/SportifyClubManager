@@ -16,11 +16,13 @@ public class PostgresClubDAO extends ClubDAO {
 
     @Override
     public void addClub(Club club) throws SQLException {
-        String query = "INSERT INTO clubs (name, description, type, meetingschedule, maxcapacity, status, requirements) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        // Correction : On utilise sport_id et une sous-requête pour trouver l'ID à partir du nom
+        String query = "INSERT INTO clubs (name, description, sport_id, meetingschedule, maxcapacity, status, requirements) " +
+                "VALUES (?, ?, (SELECT id FROM type_sports WHERE nom = ?), ?, ?, ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, club.getName());
             stmt.setString(2, club.getDescription());
-            stmt.setString(3, club.getType());
+            stmt.setString(3, club.getType()); // Le nom du sport (ex: "Rugby")
             stmt.setString(4, club.getMeetingSchedule());
             stmt.setInt(5, club.getMaxCapacity());
             stmt.setString(6, club.getStatus());
@@ -31,7 +33,8 @@ public class PostgresClubDAO extends ClubDAO {
 
     @Override
     public void updateClub(Club club) throws SQLException {
-        String query = "UPDATE clubs SET name = ?, description = ?, type = ?, meetingschedule = ?, maxcapacity = ?, status = ?, requirements = ? WHERE clubid = ?";
+        String query = "UPDATE clubs SET name = ?, description = ?, sport_id = (SELECT id FROM type_sports WHERE nom = ?), " +
+                "meetingschedule = ?, maxcapacity = ?, status = ?, requirements = ? WHERE clubid = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, club.getName());
             stmt.setString(2, club.getDescription());
@@ -56,23 +59,15 @@ public class PostgresClubDAO extends ClubDAO {
 
     @Override
     public Club getClubById(int clubID) throws SQLException {
-        String query = "SELECT * FROM clubs WHERE clubid = ?";
+        // Correction : Jointure obligatoire pour récupérer le nom du sport
+        String query = "SELECT c.*, ts.nom as sport_nom FROM clubs c " +
+                "JOIN type_sports ts ON c.sport_id = ts.id " +
+                "WHERE c.clubid = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, clubID);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    Club club = new Club(
-                            rs.getInt("clubid"),
-                            rs.getString("name"),
-                            rs.getString("description"),
-                            rs.getString("type"),
-                            rs.getString("meetingschedule"),
-                            rs.getInt("maxcapacity")
-                    );
-                    club.setStatus(rs.getString("status"));
-                    club.setRequirements(rs.getString("requirements"));
-                    club.setCurrentMemberCount(this.getCurrentMembers(clubID));
-                    return club;
+                    return mapResultSetToClub(rs);
                 }
             }
         }
@@ -82,26 +77,37 @@ public class PostgresClubDAO extends ClubDAO {
     @Override
     public List<Club> getAllClubs() throws SQLException {
         List<Club> clubs = new ArrayList<>();
-        String query = "SELECT * FROM clubs";
+        // Correction : Jointure pour transformer l'ID en Nom lisible
+        String query = "SELECT c.*, ts.nom as sport_nom FROM clubs c " +
+                "JOIN type_sports ts ON c.sport_id = ts.id";
         try (PreparedStatement stmt = connection.prepareStatement(query);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                Club club = new Club(
-                        rs.getInt("clubid"),
-                        rs.getString("name"),
-                        rs.getString("description"),
-                        rs.getString("type"),
-                        rs.getString("meetingschedule"),
-                        rs.getInt("maxcapacity")
-                );
-                club.setStatus(rs.getString("status"));
-                club.setRequirements(rs.getString("requirements"));
-                club.setCurrentMemberCount(this.getCurrentMembers(club.getClubID()));
-                clubs.add(club);
+                clubs.add(mapResultSetToClub(rs));
             }
         }
         return clubs;
     }
+
+    /**
+     * Méthode utilitaire pour éviter la répétition de code
+     */
+    private Club mapResultSetToClub(ResultSet rs) throws SQLException {
+        Club club = new Club(
+                rs.getInt("clubid"),
+                rs.getString("name"),
+                rs.getString("description"),
+                rs.getString("sport_nom"), // On utilise le alias sport_nom de la jointure
+                rs.getString("meetingschedule"),
+                rs.getInt("maxcapacity")
+        );
+        club.setStatus(rs.getString("status"));
+        club.setRequirements(rs.getString("requirements"));
+        club.setCurrentMemberCount(this.getCurrentMembers(rs.getInt("clubid")));
+        return club;
+    }
+
+    // --- Les autres méthodes restent identiques car elles n'utilisent pas la colonne type/sport_id ---
 
     @Override
     public void addMemberToClub(int clubId, String userId) throws SQLException {
@@ -175,13 +181,9 @@ public class PostgresClubDAO extends ClubDAO {
 
     @Override
     public List<MembershipRequest> getPendingRequests() throws SQLException {
-        // Appelle la méthode filtrée avec null pour tout voir (Admin)
         return getPendingRequestsByDirector(null);
     }
 
-    /**
-     * Implémentation de la méthode filtrée pour le Directeur
-     */
     @Override
     public List<MembershipRequest> getPendingRequestsByDirector(String directorId) throws SQLException {
         List<MembershipRequest> requests = new ArrayList<>();
@@ -191,7 +193,6 @@ public class PostgresClubDAO extends ClubDAO {
                 "JOIN users u ON r.userid = u.id " +
                 "WHERE r.status = 'PENDING'";
 
-        // Ajout du filtre si un ID de directeur est spécifié
         if (directorId != null) {
             query += " AND c.manager_id = ?";
         }
