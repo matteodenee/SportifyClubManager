@@ -10,7 +10,7 @@ public class StatManager {
 
     public List<Statistique> calculateTeamPerformance(int teamId, String period) throws SQLException {
         // Récupération du DAO via la Factory
-        StatDAO statDAO = AbstractFactory.createFactory().createStatDAO();
+        StatDAO statDAO = AbstractFactory.getFactory().createStatDAO();
 
         // Récupération des données brutes
         List<SmallEvent> events = statDAO.getEventsByTeam(teamId, period);
