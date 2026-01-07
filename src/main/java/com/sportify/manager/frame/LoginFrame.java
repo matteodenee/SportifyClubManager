@@ -1,9 +1,9 @@
 package com.sportify.manager.frame;
 
 import com.sportify.manager.controllers.LoginController;
-import com.sportify.manager.services.User;
 import com.sportify.manager.controllers.ClubController;
 import com.sportify.manager.dao.PostgresUserDAO;
+import com.sportify.manager.services.User;
 
 import javafx.application.Application;
 import javafx.geometry.Insets;
@@ -11,7 +11,6 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
-import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import java.sql.Connection;
 
@@ -37,9 +36,9 @@ public class LoginFrame extends Application {
         VBox root = new VBox(20);
         root.setAlignment(Pos.CENTER);
         root.setPadding(new Insets(40));
-        root.setStyle("-fx-background-color: #2c3e50;"); // Fond sombre comme la sidebar
+        root.setStyle("-fx-background-color: #2c3e50;"); // Fond sombre cohérent
 
-        // --- LOGO OU TITRE ---
+        // --- LOGO / TITRE ---
         Label titleLabel = new Label("SPORTIFY");
         titleLabel.setStyle("-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold; -fx-letter-spacing: 2px;");
 
@@ -49,6 +48,7 @@ public class LoginFrame extends Application {
         // --- FORMULAIRE ---
         VBox formBox = new VBox(15);
         formBox.setMaxWidth(300);
+        formBox.setAlignment(Pos.CENTER);
 
         idField = new TextField();
         idField.setPromptText("Identifiant");
@@ -62,7 +62,7 @@ public class LoginFrame extends Application {
         loginButton.setMaxWidth(Double.MAX_VALUE);
         loginButton.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 5; -fx-cursor: hand;");
 
-        // Effet de survol pour le bouton
+        // Effet de survol (Hover)
         loginButton.setOnMouseEntered(e -> loginButton.setStyle("-fx-background-color: #2980b9; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 5;"));
         loginButton.setOnMouseExited(e -> loginButton.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 5;"));
 
@@ -70,21 +70,38 @@ public class LoginFrame extends Application {
             loginController.onClick(idField.getText(), pwdField.getText());
         });
 
+        // --- NOUVEAU : LIEN D'INSCRIPTION ---
+        Hyperlink registerLink = new Hyperlink("Pas encore de compte ? Créer un compte");
+        registerLink.setStyle("-fx-text-fill: #bdc3c7; -fx-underline: false; -fx-font-size: 12px;");
+        registerLink.setOnMouseEntered(e -> registerLink.setStyle("-fx-text-fill: #3498db; -fx-underline: true;"));
+        registerLink.setOnMouseExited(e -> registerLink.setStyle("-fx-text-fill: #bdc3c7; -fx-underline: false;"));
+
+        registerLink.setOnAction(e -> {
+            RegisterFrame registerFrame = new RegisterFrame();
+            try {
+                // Redirection vers l'inscription dans la même fenêtre
+                registerFrame.start(primaryStage);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
         messageLabel = new Label();
         messageLabel.setStyle("-fx-text-fill: #e74c3c; -fx-font-size: 12px;");
 
-        formBox.getChildren().addAll(idField, pwdField, loginButton, messageLabel);
+        formBox.getChildren().addAll(idField, pwdField, loginButton, registerLink, messageLabel);
 
         root.getChildren().addAll(titleLabel, subTitle, formBox);
 
-        Scene scene = new Scene(root, 400, 450);
+        Scene scene = new Scene(root, 400, 500); // Légèrement plus grand pour le lien
         primaryStage.setTitle("Sportify - Login");
         primaryStage.setResizable(false);
         primaryStage.setScene(scene);
         primaryStage.show();
     }
 
-    // --- LOGIQUE DE REDIRECTION ---
+    // --- LOGIQUE DE NAVIGATION ---
+
     public void showLoginSuccess(User user) {
         String role = user.getRole().toUpperCase();
         switch (role) {
@@ -100,7 +117,8 @@ public class LoginFrame extends Application {
         messageLabel.setText("Identifiants incorrects.");
     }
 
-    // --- OUVERTURE DES DASHBOARDS ---
+    // --- MÉTHODES D'OUVERTURE DES DASHBOARDS ---
+
     public void openCoachDashboard(User user) {
         try {
             CoachDashboardFrame coachFrame = new CoachDashboardFrame(user);
