@@ -1,0 +1,74 @@
+@startuml Diagramme-Sequence-Corrige
+skinparam style strictuml
+skinparam shadowing false
+
+' Déclaration des participants
+actor User
+boundary Frame as "LoginFrame\n(Boundary)"
+control Controller as "LoginController\n(Control)"
+control Facade as "LoginFacade\n(Facade)"
+control Manager as "UserManager\n(Business)"
+control Factory as "AbstractFactory\n(Factory)"
+control PgFactory as "PostgresFactory"
+control PgDAO as "PostgresUserDAO\n(DAO)"
+database DB as "PostgreSQL"
+
+' ========== SÉQUENCE D'AUTHENTIFICATION ==========
+
+User -> Frame : Enter id/pwd & click login
+activate Frame
+
+Frame -> Controller : onClick(id, pwd)
+activate Controller
+
+Controller -> Facade : login(id, pwd)
+activate Facade
+
+Facade -> Manager : login(id, pwd)
+activate Manager
+
+' ========== FACTORY PATTERN ==========
+Manager -> Factory : createFactory()
+activate Factory
+Factory --> Manager : PostgresFactory instance
+deactivate Factory
+
+Manager -> PgFactory : createUserDAO()
+activate PgFactory
+PgFactory -> PgDAO : new PostgresUserDAO()
+activate PgDAO
+PgFactory --> Manager : PgDAO instance
+deactivate PgFactory
+
+' ========== ACCÈS BASE DE DONNÉES ==========
+Manager -> PgDAO : getUserById(id)
+PgDAO -> DB : SELECT * FROM users\nWHERE id = ?
+activate DB
+DB --> PgDAO : User row or null
+deactivate DB
+
+PgDAO --> Manager : User object or null
+deactivate PgDAO
+
+' ========== VALIDATION DES CREDENTIALS ==========
+alt User exists AND password matches
+    Manager -> Manager : Verify password
+    Manager -> Manager : setCurrentUser(user)
+    Manager --> Facade : User object (authenticated)
+    Facade --> Controller : User object
+    Controller -> Frame : showMainUI()
+    Frame --> User : Display main interface
+    
+else User not found OR invalid password
+    Manager --> Facade : null
+    Facade --> Controller : null
+    Controller -> Frame : showError("Invalid credentials")
+    Frame --> User : Display error message
+end
+
+deactivate Manager
+deactivate Facade
+deactivate Controller
+deactivate Frame
+
+@enduml

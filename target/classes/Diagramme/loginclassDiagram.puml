@@ -1,0 +1,84 @@
+@startuml
+skinparam style strictuml
+
+' ===========================================================
+'                     BOUNDARY LAYER
+' ===========================================================
+class LoginFrame {
+    + setLoginController(c : LoginController)
+}
+
+class LoginController {
+    +onClick() : void
+}
+
+LoginFrame --> LoginController 
+LoginController --> LoginFacade
+
+
+' ===========================================================
+'                     FACADE LAYER
+' ===========================================================
+class LoginFacade {
+    + createLoginFacade() : LoginFacade
+    + login(id : String, pwd : String) : User
+}
+
+LoginFacade --> UserManager
+
+
+' ===========================================================
+'                     BUSINESS LAYER
+' ===========================================================
+class UserManager {
+    - currentUser : User
+    + createUserManager() : UserManager
+    + login(id : String, pwd : String) : User
+    + getCurrentUser() : User
+}
+
+class User {
+    - id : String
+    - password : String
+    + getId() : String
+    + getPassword() : String
+}
+
+UserManager --> UserDAO 
+UserManager --> User
+UserManager --> AbstractFactory
+
+
+' ===========================================================
+'                     DAO LAYER
+' ===========================================================
+interface UserDAO {
+    + getUserById(id : String) : User
+}
+
+class PostgresUserDAO {
+    + getUserById(id : String) : User
+}
+
+UserDAO <|.. PostgresUserDAO : implements
+UserDAO --> User
+UserDAO <-- AbstractFactory
+
+
+' ===========================================================
+'                     FACTORY LAYER
+' ===========================================================
+abstract class AbstractFactory {
+    + createFactory() : PostgresFactory
+    + createUserDAO() : UserDAO
+}
+
+
+class PostgresFactory {
+    + createUserDAO() : UserDAO
+}
+
+AbstractFactory <|-- PostgresFactory : extends
+PostgresFactory --> PostgresUserDAO
+
+@enduml
