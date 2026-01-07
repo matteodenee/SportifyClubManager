@@ -1,0 +1,74 @@
+@startuml
+' Classe AbstractFactory pour la gestion des licences
+abstract class AbstractFactory {
+    +createLicenseRequestDAO() : LicenseRequestDAO
+    +createLicenseDAO() : LicenseDAO
+}
+
+' Classe concrète PostgresFactory pour la gestion des licences
+class PostgresFactory extends AbstractFactory {
+    +createLicenseRequestDAO() : LicenseRequestDAO
+    +createLicenseDAO() : LicenseDAO
+}
+
+' DAO pour LicenseRequest
+abstract class LicenseRequestDAO {
+    +getLicenseRequestById(id: String) : LicenseRequest
+    +saveRequest(request: LicenseRequest) : boolean
+}
+
+' DAO pour License
+abstract class LicenseDAO {
+    +getLicenseById(id: String) : License
+    +saveLicense(license: License) : boolean
+}
+
+' Classe LicenseRequest représentant une demande de licence
+class LicenseRequest {
+    +id: String
+    +sport: String
+    +licenseType: String
+    +status: String
+    +documents: List<Document>
+    +submitRequest(): void
+    +validateRequest(): void
+}
+
+' Classe License représentant une licence active
+class License {
+    +id: String
+    +user: User
+    +licenseType: String
+    +validity: Date
+    +status: String
+    +updateLicenseDetails(): void
+    +checkExpiration(): boolean
+}
+
+' Classe User représentant un utilisateur (Membre ou Administrateur)
+class User {
+    +id: String
+    +name: String
+    +email: String
+    +password: String
+    +authenticate(): boolean
+}
+
+' Administrateur : peut valider/refuser une demande de licence et gérer les licences
+class Admin {
+    +id: String
+    +name: String
+    +manageLicenseRequests(): void
+    +trackLicenseValidity(): void
+}
+
+' Relations entre les classes
+LicenseRequestDAO <|-- PostgresFactory
+LicenseDAO <|-- PostgresFactory
+LicenseRequestDAO <|-- LicenseRequest
+LicenseDAO <|-- License
+LicenseRequest --> License
+User <|-- LicenseRequest
+User <|-- Admin
+
+@enduml
