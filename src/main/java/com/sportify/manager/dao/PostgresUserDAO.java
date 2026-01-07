@@ -38,13 +38,32 @@ public class PostgresUserDAO extends UserDAO {
         return instance;
     }
 
+    /**
+     * NOUVELLE MÉTHODE : Récupère le club_id associé à un coach.
+     * Basé sur la table 'members' où le rôle est 'COACH'.
+     */
+    public int getClubIdByCoach(String coachId) {
+        String sql = "SELECT clubid FROM members WHERE userid = ? AND role_in_club = 'COACH'";
+
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, coachId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("clubid");
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur lors de la récupération du club du coach: " + e.getMessage());
+        }
+        return -1; // Retourne -1 si aucun club n'est trouvé
+    }
+
     @Override
     public User getUserById(String id) {
         if (id == null || id.isEmpty()) {
             return null;
         }
 
-        // MISE À JOUR : Sélection de toutes les colonnes nécessaires selon le diagramme de classes
         String sql = "SELECT id, password, name, email, role FROM users WHERE id = ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -52,14 +71,12 @@ public class PostgresUserDAO extends UserDAO {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    // Extraction des nouvelles données
                     String userId = rs.getString("id");
                     String pwd = rs.getString("password");
                     String name = rs.getString("name");
                     String email = rs.getString("email");
                     String role = rs.getString("role");
 
-                    // Retourne l'objet User complet (assurez-vous d'avoir mis à jour User.java avant)
                     return new User(userId, pwd, name, email, role);
                 }
             }

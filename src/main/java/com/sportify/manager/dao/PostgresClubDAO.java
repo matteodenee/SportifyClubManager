@@ -103,8 +103,6 @@ public class PostgresClubDAO extends ClubDAO {
         return clubs;
     }
 
-    // --- GESTION DES MEMBRES ---
-
     @Override
     public void addMemberToClub(int clubId, String userId) throws SQLException {
         String sql = "INSERT INTO members (clubid, userid) VALUES (?, ?)";
@@ -152,8 +150,6 @@ public class PostgresClubDAO extends ClubDAO {
         return false;
     }
 
-    // --- GESTION DES DEMANDES D'ADHÉSION ---
-
     @Override
     public void createMembershipRequest(int clubId, String userId) throws SQLException {
         String query = "INSERT INTO membership_requests (clubid, userid, status) VALUES (?, ?, 'PENDING')";
@@ -179,24 +175,42 @@ public class PostgresClubDAO extends ClubDAO {
 
     @Override
     public List<MembershipRequest> getPendingRequests() throws SQLException {
+        // Appelle la méthode filtrée avec null pour tout voir (Admin)
+        return getPendingRequestsByDirector(null);
+    }
+
+    /**
+     * Implémentation de la méthode filtrée pour le Directeur
+     */
+    @Override
+    public List<MembershipRequest> getPendingRequestsByDirector(String directorId) throws SQLException {
         List<MembershipRequest> requests = new ArrayList<>();
-        // Jointure pour récupérer les noms réels au lieu des IDs pour l'UI
         String query = "SELECT r.requestid, r.clubid, r.userid, c.name as clubname, u.name as username, r.status " +
                 "FROM membership_requests r " +
                 "JOIN clubs c ON r.clubid = c.clubid " +
                 "JOIN users u ON r.userid = u.id " +
                 "WHERE r.status = 'PENDING'";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
-            while (rs.next()) {
-                requests.add(new MembershipRequest(
-                        rs.getInt("requestid"),
-                        rs.getInt("clubid"),
-                        rs.getString("userid"),
-                        rs.getString("clubname"),
-                        rs.getString("username"),
-                        rs.getString("status")
-                ));
+
+        // Ajout du filtre si un ID de directeur est spécifié
+        if (directorId != null) {
+            query += " AND c.manager_id = ?";
+        }
+
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            if (directorId != null) {
+                stmt.setString(1, directorId);
+            }
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    requests.add(new MembershipRequest(
+                            rs.getInt("requestid"),
+                            rs.getInt("clubid"),
+                            rs.getString("userid"),
+                            rs.getString("clubname"),
+                            rs.getString("username"),
+                            rs.getString("status")
+                    ));
+                }
             }
         }
         return requests;
