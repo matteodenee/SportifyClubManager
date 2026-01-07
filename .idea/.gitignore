@@ -8,31 +8,3 @@
 /dataSources.local.xml
 # Editor-based HTTP Client requests
 /httpRequests/
-# Maven
-target/
-pom.xml.tag
-pom.xml.releaseBackup
-pom.xml.versionsBackup
-
-# IntelliJ IDEA
-.idea/
-*.iml
-*.iws
-*.ipr
-out/
-
-# Compiled
-bin/
-*.class
-
-# JAR files (Maven va les gérer)
-*.jar
-
-# Zip files
-*.zip
-
-# Logs
-*.log
-
-# OS
-.DS_Store
