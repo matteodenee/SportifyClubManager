@@ -75,13 +75,20 @@
                             <goal>java</goal>
                         </goals>
                         <configuration>
-                            <mainClass>com.sportify.manager.frame.LoginFrame</mainClass>
+                            <mainClass>com.sportify.manager.frame.ClubManagementFrame</mainClass>
                             <classpathScope>compile</classpathScope>
+                            <arguments>
+                                <argument>--module-path</argument>
+                                <argument>${javafx.home}/lib</argument>
+                                <argument>--add-modules</argument>
+                                <argument>javafx.controls,javafx.fxml</argument>
+                            </arguments>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
 
+            <!-- JavaFX Maven Plugin (version 0.0.8) -->
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
@@ -98,8 +105,6 @@
                     </execution>
                 </executions>
             </plugin>
-
-
 
         </plugins>
     </build>

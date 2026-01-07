@@ -2,98 +2,177 @@ package com.sportify.manager.frame;
 
 import com.sportify.manager.controllers.LoginController;
 import com.sportify.manager.controllers.RegisterController;
-import com.sportify.manager.frame.RegisterFrame;
+import com.sportify.manager.controllers.ClubController;
+import com.sportify.manager.dao.PostgresUserDAO;
 import com.sportify.manager.services.User;
+
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 
-public class LoginFrame extends Application {
-    // fenetre javafx pour la page login
-    private LoginController loginController;
+import java.sql.Connection;
 
+public class LoginFrame extends Application {
+
+    private LoginController loginController;
     private TextField idField;
     private PasswordField pwdField;
     private Label messageLabel;
 
     public void setLoginController(LoginController controller) {
-        // la vue recupere son controleur
         this.loginController = controller;
     }
 
     @Override
     public void start(Stage primaryStage) {
-        // si rien n'est injecte on fabrique un controleur par defaut
         if (loginController == null) {
             loginController = new LoginController();
         }
         loginController.setLoginFrame(this);
 
-        idField = new TextField();
-        pwdField = new PasswordField();
-        messageLabel = new Label();
+        // --- DESIGN DU CONTAINER PRINCIPAL ---
+        VBox root = new VBox(20);
+        root.setAlignment(Pos.CENTER);
+        root.setPadding(new Insets(40));
+        root.setStyle("-fx-background-color: #2c3e50;"); // Fond sombre comme la sidebar
 
-        Button loginButton = new Button("Login");
+        // --- LOGO OU TITRE ---
+        Label titleLabel = new Label("SPORTIFY");
+        titleLabel.setStyle("-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold; -fx-letter-spacing: 2px;");
+
+        Label subTitle = new Label("Club Management System");
+        subTitle.setStyle("-fx-text-fill: #bdc3c7; -fx-font-size: 14px;");
+
+        // --- FORMULAIRE ---
+        VBox formBox = new VBox(15);
+        formBox.setMaxWidth(300);
+
+        idField = new TextField();
+        idField.setPromptText("Identifiant");
+        idField.setStyle("-fx-background-color: #34495e; -fx-text-fill: white; -fx-prompt-text-fill: #95a5a6; -fx-padding: 10; -fx-background-radius: 5;");
+
+        pwdField = new PasswordField();
+        pwdField.setPromptText("Mot de passe");
+        pwdField.setStyle("-fx-background-color: #34495e; -fx-text-fill: white; -fx-prompt-text-fill: #95a5a6; -fx-padding: 10; -fx-background-radius: 5;");
+
+        Button loginButton = new Button("SE CONNECTER");
+        loginButton.setMaxWidth(Double.MAX_VALUE);
+        loginButton.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 5; -fx-cursor: hand;");
+
+        // Effet de survol pour le bouton
+        loginButton.setOnMouseEntered(e -> loginButton.setStyle("-fx-background-color: #2980b9; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 5;"));
+        loginButton.setOnMouseExited(e -> loginButton.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 5;"));
+
         loginButton.setOnAction(event -> {
-            String id = idField.getText();
-            String pwd = pwdField.getText();
-            loginController.onClick(id, pwd);
+            loginController.onClick(idField.getText(), pwdField.getText());
         });
 
-        Button registerButton = new Button("Register");
+        messageLabel = new Label();
+        messageLabel.setStyle("-fx-text-fill: #e74c3c; -fx-font-size: 12px;");
+
+        Button registerButton = new Button("S'INSCRIRE");
+        registerButton.setMaxWidth(Double.MAX_VALUE);
+        registerButton.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 5; -fx-cursor: hand;");
+        registerButton.setOnMouseEntered(e -> registerButton.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 5;"));
+        registerButton.setOnMouseExited(e -> registerButton.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 5;"));
         registerButton.setOnAction(event -> {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/RegisterView.fxml"));
-                Parent root = loader.load();
+                Parent regRoot = loader.load();
 
                 RegisterFrame registerFrame = loader.getController();
                 registerFrame.setLoginFrame(this);
                 registerFrame.setStage(primaryStage);
                 registerFrame.setRegisterController(new RegisterController());
 
-                Scene scene = new Scene(root, 450, 360);
-                primaryStage.setScene(scene);
+                Scene regScene = new Scene(regRoot, 450, 420);
+                primaryStage.setScene(regScene);
             } catch (Exception e) {
                 e.printStackTrace();
             }
         });
 
-        GridPane grid = new GridPane();
-        grid.setPadding(new Insets(20));
-        grid.setHgap(10);
-        grid.setVgap(10);
+        formBox.getChildren().addAll(idField, pwdField, loginButton, registerButton, messageLabel);
 
-        grid.add(new Label("User id:"), 0, 0);
-        grid.add(idField, 1, 0);
-        grid.add(new Label("Password:"), 0, 1);
-        grid.add(pwdField, 1, 1);
-        grid.add(loginButton, 1, 2);
-        grid.add(registerButton, 2, 2);
-        grid.add(messageLabel, 1, 3);
+        root.getChildren().addAll(titleLabel, subTitle, formBox);
 
-        Scene scene = new Scene(grid, 400, 250);
-        primaryStage.setTitle("Sportify Club Manager - Login");
+        Scene scene = new Scene(root, 400, 450);
+        primaryStage.setTitle("Sportify - Login");
+        primaryStage.setResizable(false);
         primaryStage.setScene(scene);
         primaryStage.show();
     }
 
+    // --- LOGIQUE DE REDIRECTION ---
     public void showLoginSuccess(User user) {
-        // message simple en cas de succes
-        messageLabel.setText("Welcome " + user.getId() + "!");
+        String role = user.getRole().toUpperCase();
+        switch (role) {
+            case "ADMIN": openClubManagementFrame(); break;
+            case "DIRECTOR": openDirectorDashboard(user); break;
+            case "MEMBER": openMemberDashboard(user); break;
+            case "COACH": openCoachDashboard(user); break;
+            default: messageLabel.setText("Rôle inconnu : " + role);
+        }
     }
 
     public void showLoginError() {
-        // message simple en cas d'erreur
-        messageLabel.setText("Invalid credentials.");
+        messageLabel.setText("Identifiants incorrects.");
     }
 
-    public static void main(String[] args) {
-        // entree standard pour lancer la fenetre
-        launch(args);
+    // --- OUVERTURE DES DASHBOARDS ---
+    public void openCoachDashboard(User user) {
+        try {
+            CoachDashboardFrame coachFrame = new CoachDashboardFrame(user);
+            coachFrame.start(new Stage());
+            closeCurrentStage();
+        } catch (Exception e) { e.printStackTrace(); }
     }
+
+    public void openClubManagementFrame() {
+        try {
+            Connection connection = PostgresUserDAO.getConnection();
+            ClubController clubController = new ClubController(connection);
+            ClubManagementFrame clubManagementFrame = new ClubManagementFrame();
+            clubManagementFrame.setClubController(clubController);
+            clubManagementFrame.start(new Stage());
+            closeCurrentStage();
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    public void openDirectorDashboard(User user) {
+        try {
+            Connection connection = PostgresUserDAO.getConnection();
+            ClubController clubController = new ClubController(connection);
+            DirectorDashboardFrame directorFrame = new DirectorDashboardFrame(user);
+            directorFrame.setClubController(clubController);
+            directorFrame.start(new Stage());
+            closeCurrentStage();
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    public void openMemberDashboard(User user) {
+        try {
+            Connection connection = PostgresUserDAO.getConnection();
+            ClubController clubController = new ClubController(connection);
+            MemberDashboardFrame memberFrame = new MemberDashboardFrame(user);
+            memberFrame.setClubController(clubController);
+            memberFrame.start(new Stage());
+            closeCurrentStage();
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private void closeCurrentStage() {
+        if (idField.getScene() != null) {
+            ((Stage) idField.getScene().getWindow()).close();
+        }
+    }
+
+    public static void main(String[] args) { launch(args); }
 }

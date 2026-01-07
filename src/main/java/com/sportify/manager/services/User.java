@@ -46,6 +46,13 @@ public class User {
         this.password = password;
     }
 
+    /**
+     * Compatibility getter for legacy code using getPwd().
+     */
+    public String getPwd() {
+        return password;
+    }
+
     public String getEmail() {
         return email;
     }
