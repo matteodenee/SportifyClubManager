@@ -32,14 +32,29 @@ public class PostgresFactory extends AbstractFactory {
         return new PostgresLicenceDAO(connection);
     }
 
-    /**
-     * Nouvelle implémentation pour fabriquer le DAO de ton ami
-     */
     @Override
     public TypeSportDAO createTypeSportDAO() {
-        // On récupère la connexion partagée comme pour les autres DAOs
         Connection connection = PostgresUserDAO.getConnection();
-        // On retourne l'implémentation concrète de ton ami
         return new PostgresTypeSportDAO(connection);
+    }
+
+    // --- LES DEUX MÉTHODES MANQUANTES QUI CAUSENT L'ERREUR ---
+
+    @Override
+    public MatchDAO createMatchDAO() {
+        Connection connection = PostgresUserDAO.getConnection();
+        return new PostgresMatchDAO(connection);
+    }
+
+    @Override
+    public CompositionDAO createCompositionDAO() {
+        Connection connection = PostgresUserDAO.getConnection();
+        return new PostgresCompositionDAO(connection);
+    }
+
+    @Override
+    public MatchRequestDAO createMatchRequestDAO() {
+        Connection connection = PostgresUserDAO.getConnection();
+        return new PostgresMatchRequestDAO(connection);
     }
 }

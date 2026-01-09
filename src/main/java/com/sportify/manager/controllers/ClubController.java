@@ -20,8 +20,11 @@ public class ClubController {
         return clubDAO.getAllClubs();
     }
 
-    public Club createClub(int clubID, String name, String description, String type, String meetingSchedule, int maxCapacity) throws SQLException {
-        Club newClub = new Club(clubID, name, description, type, meetingSchedule, maxCapacity);
+    public Club createClub(int clubID, String name, String description, int sportId, String type, String meetingSchedule, int maxCapacity) throws SQLException {
+
+        // On appelle maintenant le constructeur à 7 arguments de Club.java
+        Club newClub = new Club(clubID, name, description, sportId, type, meetingSchedule, maxCapacity);
+
         clubDAO.addClub(newClub);
         return newClub;
     }

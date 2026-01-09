@@ -14,15 +14,33 @@ public class PostgresClubDAO extends ClubDAO {
         this.connection = connection;
     }
 
+    // --- MISE À JOUR : mapResultSetToClub ---
+    // C'est ici que l'erreur se produisait. On utilise maintenant le constructeur complet.
+    private Club mapResultSetToClub(ResultSet rs) throws SQLException {
+        Club club = new Club(
+                rs.getInt("clubid"),
+                rs.getString("name"),
+                rs.getString("description"),
+                rs.getInt("sport_id"),      // NOUVEAU : On récupère l'ID numérique
+                rs.getString("sport_nom"),   // Le nom du sport (type)
+                rs.getString("meetingschedule"),
+                rs.getInt("maxcapacity")
+        );
+        club.setStatus(rs.getString("status"));
+        club.setRequirements(rs.getString("requirements"));
+        club.setCurrentMemberCount(this.getCurrentMembers(rs.getInt("clubid")));
+        return club;
+    }
+
     @Override
     public void addClub(Club club) throws SQLException {
-        // Correction : On utilise sport_id et une sous-requête pour trouver l'ID à partir du nom
+        // On insère maintenant soit via l'ID directement, soit via le nom
         String query = "INSERT INTO clubs (name, description, sport_id, meetingschedule, maxcapacity, status, requirements) " +
-                "VALUES (?, ?, (SELECT id FROM type_sports WHERE nom = ?), ?, ?, ?, ?)";
+                "VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, club.getName());
             stmt.setString(2, club.getDescription());
-            stmt.setString(3, club.getType()); // Le nom du sport (ex: "Rugby")
+            stmt.setInt(3, club.getSportId()); // Utilisation de l'ID numérique
             stmt.setString(4, club.getMeetingSchedule());
             stmt.setInt(5, club.getMaxCapacity());
             stmt.setString(6, club.getStatus());
@@ -33,33 +51,23 @@ public class PostgresClubDAO extends ClubDAO {
 
     @Override
     public void updateClub(Club club) throws SQLException {
-        String query = "UPDATE clubs SET name = ?, description = ?, sport_id = (SELECT id FROM type_sports WHERE nom = ?), " +
+        String query = "UPDATE clubs SET name = ?, description = ?, sport_id = ?, " +
                 "meetingschedule = ?, maxcapacity = ?, status = ?, requirements = ? WHERE clubid = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, club.getName());
             stmt.setString(2, club.getDescription());
-            stmt.setString(3, club.getType());
+            stmt.setInt(3, club.getSportId());
             stmt.setString(4, club.getMeetingSchedule());
             stmt.setInt(5, club.getMaxCapacity());
             stmt.setString(6, club.getStatus());
             stmt.setString(7, club.getRequirements());
-            stmt.setInt(8, club.getClubID());
-            stmt.executeUpdate();
-        }
-    }
-
-    @Override
-    public void deleteClub(int clubID) throws SQLException {
-        String query = "DELETE FROM clubs WHERE clubid = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setInt(1, clubID);
+            stmt.setInt(8, club.getClubId()); // Correction : getClubId au lieu de getClubID
             stmt.executeUpdate();
         }
     }
 
     @Override
     public Club getClubById(int clubID) throws SQLException {
-        // Correction : Jointure obligatoire pour récupérer le nom du sport
         String query = "SELECT c.*, ts.nom as sport_nom FROM clubs c " +
                 "JOIN type_sports ts ON c.sport_id = ts.id " +
                 "WHERE c.clubid = ?";
@@ -77,7 +85,6 @@ public class PostgresClubDAO extends ClubDAO {
     @Override
     public List<Club> getAllClubs() throws SQLException {
         List<Club> clubs = new ArrayList<>();
-        // Correction : Jointure pour transformer l'ID en Nom lisible
         String query = "SELECT c.*, ts.nom as sport_nom FROM clubs c " +
                 "JOIN type_sports ts ON c.sport_id = ts.id";
         try (PreparedStatement stmt = connection.prepareStatement(query);
@@ -89,25 +96,17 @@ public class PostgresClubDAO extends ClubDAO {
         return clubs;
     }
 
-    /**
-     * Méthode utilitaire pour éviter la répétition de code
-     */
-    private Club mapResultSetToClub(ResultSet rs) throws SQLException {
-        Club club = new Club(
-                rs.getInt("clubid"),
-                rs.getString("name"),
-                rs.getString("description"),
-                rs.getString("sport_nom"), // On utilise le alias sport_nom de la jointure
-                rs.getString("meetingschedule"),
-                rs.getInt("maxcapacity")
-        );
-        club.setStatus(rs.getString("status"));
-        club.setRequirements(rs.getString("requirements"));
-        club.setCurrentMemberCount(this.getCurrentMembers(rs.getInt("clubid")));
-        return club;
-    }
+    // --- LE RESTE DES MÉTHODES RESTE IDENTIQUE ---
+    // (Conserve tes méthodes addMemberToClub, getCurrentMembers, etc. telles quelles)
 
-    // --- Les autres méthodes restent identiques car elles n'utilisent pas la colonne type/sport_id ---
+    @Override
+    public void deleteClub(int clubID) throws SQLException {
+        String query = "DELETE FROM clubs WHERE clubid = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, clubID);
+            stmt.executeUpdate();
+        }
+    }
 
     @Override
     public void addMemberToClub(int clubId, String userId) throws SQLException {
@@ -192,15 +191,9 @@ public class PostgresClubDAO extends ClubDAO {
                 "JOIN clubs c ON r.clubid = c.clubid " +
                 "JOIN users u ON r.userid = u.id " +
                 "WHERE r.status = 'PENDING'";
-
-        if (directorId != null) {
-            query += " AND c.manager_id = ?";
-        }
-
+        if (directorId != null) query += " AND c.manager_id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            if (directorId != null) {
-                stmt.setString(1, directorId);
-            }
+            if (directorId != null) stmt.setString(1, directorId);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     requests.add(new MembershipRequest(

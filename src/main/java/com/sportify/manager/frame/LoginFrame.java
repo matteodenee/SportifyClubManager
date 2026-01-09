@@ -131,9 +131,9 @@ public class LoginFrame extends Application {
         try {
             Connection connection = PostgresUserDAO.getConnection();
             ClubController clubController = new ClubController(connection);
-            ClubManagementFrame clubManagementFrame = new ClubManagementFrame();
-            clubManagementFrame.setClubController(clubController);
-            clubManagementFrame.start(new Stage());
+            AdminDashboardFrame adminDashboardFrame = new AdminDashboardFrame();
+            adminDashboardFrame.setClubController(clubController);
+            adminDashboardFrame.start(new Stage());
             closeCurrentStage();
         } catch (Exception e) { e.printStackTrace(); }
     }

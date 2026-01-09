@@ -1,15 +1,18 @@
 ---------------------------------------------------------
 -- NETTOYAGE (Ordre respectant les contraintes)
 ---------------------------------------------------------
-DROP TABLE IF EXISTS small_events;
-DROP TABLE IF EXISTS membership_requests;
-DROP TABLE IF EXISTS members;
-DROP TABLE IF EXISTS licences;
-DROP TABLE IF EXISTS sport_roles;
-DROP TABLE IF EXISTS sport_stats;
-DROP TABLE IF EXISTS clubs;
-DROP TABLE IF EXISTS type_sports;
-DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS match_composition CASCADE;
+DROP TABLE IF EXISTS match_requests CASCADE;
+DROP TABLE IF EXISTS matchs CASCADE;
+DROP TABLE IF EXISTS small_events CASCADE;
+DROP TABLE IF EXISTS membership_requests CASCADE;
+DROP TABLE IF EXISTS members CASCADE;
+DROP TABLE IF EXISTS licences CASCADE;
+DROP TABLE IF EXISTS sport_roles CASCADE;
+DROP TABLE IF EXISTS sport_stats CASCADE;
+DROP TABLE IF EXISTS clubs CASCADE;
+DROP TABLE IF EXISTS type_sports CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 
 ---------------------------------------------------------
 -- TABLES DE BASE
@@ -46,7 +49,7 @@ CREATE TABLE clubs (
 );
 
 ---------------------------------------------------------
--- GESTION DES RÔLES ET STATS
+-- GESTION DES RÔLES, STATS ET MATCHS
 ---------------------------------------------------------
 
 -- 4. Rôles spécifiques par sport
@@ -63,11 +66,53 @@ CREATE TABLE sport_stats (
                              stat_name VARCHAR(100) NOT NULL
 );
 
+-- 6. Table des Matchs (Nouveau)
+CREATE TABLE matchs (
+                        id SERIAL PRIMARY KEY,
+                        type_sport_id INT REFERENCES type_sports(id) ON DELETE CASCADE,
+                        home_team_id INT REFERENCES clubs(clubid) ON DELETE CASCADE,
+                        away_team_id INT REFERENCES clubs(clubid) ON DELETE CASCADE,
+                        datetime TIMESTAMP NOT NULL,
+                        location VARCHAR(255),
+                        referee VARCHAR(100),
+                        composition_deadline TIMESTAMP,
+                        status VARCHAR(20) DEFAULT 'SCHEDULED',
+                        home_score INT DEFAULT 0,
+                        away_score INT DEFAULT 0
+);
+
+-- 6.1 Demandes de match (Coach -> Admin)
+CREATE TABLE match_requests (
+                                id SERIAL PRIMARY KEY,
+                                requester_club_id INT REFERENCES clubs(clubid) ON DELETE CASCADE,
+                                opponent_club_id INT REFERENCES clubs(clubid) ON DELETE CASCADE,
+                                home_team_id INT REFERENCES clubs(clubid) ON DELETE CASCADE,
+                                away_team_id INT REFERENCES clubs(clubid) ON DELETE CASCADE,
+                                type_sport_id INT REFERENCES type_sports(id) ON DELETE CASCADE,
+                                requested_datetime TIMESTAMP NOT NULL,
+                                location VARCHAR(255),
+                                referee VARCHAR(100),
+                                requested_by VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL,
+                                status VARCHAR(20) DEFAULT 'PENDING',
+                                request_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                match_id INT REFERENCES matchs(id) ON DELETE SET NULL
+);
+
+-- 7. Table Composition des Matchs (Nouveau)
+CREATE TABLE match_composition (
+                                   match_id INT REFERENCES matchs(id) ON DELETE CASCADE,
+                                   team_id INT REFERENCES clubs(clubid) ON DELETE CASCADE,
+                                   player_id VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
+                                   role VARCHAR(100),
+                                   slot_index INT,
+                                   PRIMARY KEY (match_id, team_id, slot_index)
+);
+
 ---------------------------------------------------------
 -- GESTION DES MEMBRES ET LICENCES
 ---------------------------------------------------------
 
--- 6. Table Licences
+-- 8. Table Licences
 CREATE TABLE licences (
                           id VARCHAR(255) PRIMARY KEY,
                           sport_id INT REFERENCES type_sports(id) ON DELETE CASCADE,
@@ -81,7 +126,7 @@ CREATE TABLE licences (
                           commentaire_admin TEXT
 );
 
--- 7. Table Membres
+-- 9. Table Membres (Liaison User-Club)
 CREATE TABLE members (
                          userid VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
                          clubid INT REFERENCES clubs(clubid) ON DELETE CASCADE,
@@ -89,7 +134,7 @@ CREATE TABLE members (
                          PRIMARY KEY (userid, clubid)
 );
 
--- 8. Demandes d'adhésion
+-- 10. Demandes d'adhésion
 CREATE TABLE membership_requests (
                                      requestid SERIAL PRIMARY KEY,
                                      clubid INT REFERENCES clubs(clubid) ON DELETE CASCADE,
@@ -98,7 +143,7 @@ CREATE TABLE membership_requests (
                                      request_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 9. Événements / Stats de match
+-- 11. Événements (Stats de match légères)
 CREATE TABLE small_events (
                               id SERIAL PRIMARY KEY,
                               type VARCHAR(50),
@@ -117,58 +162,100 @@ CREATE TABLE small_events (
 INSERT INTO users (id, password, name, email, role) VALUES
                                                         ('admin', 'admin123', 'Super Admin', 'admin@sportify.com', 'ADMIN'),
                                                         ('dir_foot', 'dir123', 'Marc Football', 'marc@sportify.com', 'DIRECTOR'),
+                                                        ('dir_rugby', 'dir123', 'Claire Rugby', 'claire@sportify.com', 'DIRECTOR'),
+                                                        ('dir_basket', 'dir123', 'Lucas Basket', 'lucas@sportify.com', 'DIRECTOR'),
+                                                        ('dir_hand', 'dir123', 'Nina Handball', 'nina@sportify.com', 'DIRECTOR'),
+                                                        ('dir_volley', 'dir123', 'Omar Volley', 'omar@sportify.com', 'DIRECTOR'),
                                                         ('coach_zidane', 'coach123', 'Zinedine Zidane', 'zizou@foot.com', 'COACH'),
+                                                        ('coach_marie', 'coach123', 'Marie Dupont', 'marie@rugby.com', 'COACH'),
+                                                        ('coach_tony', 'coach123', 'Tony Parker', 'tony@basket.com', 'COACH'),
+                                                        ('coach_sarah', 'coach123', 'Sarah Martin', 'sarah@handball.com', 'COACH'),
+                                                        ('coach_paul', 'coach123', 'Paul Lambert', 'paul@volley.com', 'COACH'),
                                                         ('user1', 'user123', 'Alice Membre', 'alice@gmail.com', 'MEMBER'),
-                                                        ('user2', 'user123', 'Bob Sportif', 'bob@gmail.com', 'MEMBER');
+                                                        ('user2', 'user123', 'Bob Sportif', 'bob@gmail.com', 'MEMBER'),
+                                                        ('user3', 'user123', 'Chloé Garnier', 'chloe@gmail.com', 'MEMBER'),
+                                                        ('user4', 'user123', 'David Morel', 'david@gmail.com', 'MEMBER'),
+                                                        ('user5', 'user123', 'Emma Petit', 'emma@gmail.com', 'MEMBER'),
+                                                        ('user6', 'user123', 'Farid Benali', 'farid@gmail.com', 'MEMBER'),
+                                                        ('user7', 'user123', 'Giulia Rossi', 'giulia@gmail.com', 'MEMBER'),
+                                                        ('user8', 'user123', 'Hugo Leroy', 'hugo@gmail.com', 'MEMBER'),
+                                                        ('user9', 'user123', 'Ines Bernard', 'ines@gmail.com', 'MEMBER'),
+                                                        ('user10', 'user123', 'Jules Noel', 'jules@gmail.com', 'MEMBER'),
+                                                        ('user11', 'user123', 'Kenza Ali', 'kenza@gmail.com', 'MEMBER'),
+                                                        ('user12', 'user123', 'Leo Martin', 'leo@gmail.com', 'MEMBER'),
+                                                        ('user13', 'user123', 'Maya Colin', 'maya@gmail.com', 'MEMBER'),
+                                                        ('user14', 'user123', 'Nabil Hamdi', 'nabil@gmail.com', 'MEMBER'),
+                                                        ('user15', 'user123', 'Olivia Roy', 'olivia@gmail.com', 'MEMBER');
 
 -- 2. Types de Sports
 INSERT INTO type_sports (nom, description, nb_joueurs) VALUES
                                                            ('Football', 'Sport collectif 11 vs 11', 11),
-                                                           ('Basketball', 'Sport de salle 5 vs 5', 5),
-                                                           ('Tennis', 'Sport de raquette individuel', 2),
+                                                           ('Rugby', 'Sport de contact 15 vs 15', 15),
+                                                           ('Basketball', 'Sport collectif 5 vs 5', 5),
                                                            ('Handball', 'Sport collectif 7 vs 7', 7),
-                                                           ('Rugby', 'Sport de contact 15 vs 15', 15);
+                                                           ('Tennis', 'Sport individuel', 1),
+                                                           ('Volleyball', 'Sport collectif 6 vs 6', 6);
 
--- 3. Rôles et Stats
-INSERT INTO sport_roles (sport_id, role_name) VALUES (1, 'Gardien'), (1, 'Buteur'), (5, 'Pilier');
-INSERT INTO sport_stats (sport_id, stat_name) VALUES (1, 'Buts'), (5, 'Essais');
-
--- 4. Clubs
+-- 3. Clubs
 INSERT INTO clubs (name, description, sport_id, meetingschedule, maxcapacity, requirements, manager_id) VALUES
                                                                                                             ('Olympique Sportify', 'Club spécialisé en Football', 1, 'Lundi 18h', 50, 'Certificat médical', 'dir_foot'),
-                                                                                                            ('Rugby Club Erben', 'Club de rugby local', 5, 'Mercredi 14h', 30, 'Aucun', 'dir_foot');
+                                                                                                            ('Rugby Club Erben', 'Club de rugby local', 2, 'Mercredi 14h', 30, 'Aucun', 'dir_rugby'),
+                                                                                                            ('Basket City', 'Club de basket compétitif', 3, 'Mardi 19h', 25, 'Certificat médical', 'dir_basket'),
+                                                                                                            ('Handball United', 'Club de handball régional', 4, 'Jeudi 18h', 28, 'Aucun', 'dir_hand'),
+                                                                                                            ('Tennis Academy', 'Club de tennis loisirs', 5, 'Samedi 10h', 40, 'Licence obligatoire', 'dir_foot'),
+                                                                                                            ('Volley Stars', 'Club de volley-ball mixte', 6, 'Vendredi 20h', 24, 'Aucun', 'dir_volley');
 
--- 5. Licences initiales
+-- 4. Liaison Coach et Membres
+INSERT INTO members (userid, clubid, role_in_club) VALUES
+                                                       ('coach_zidane', 1, 'COACH'),
+                                                       ('coach_marie', 2, 'COACH'),
+                                                       ('coach_tony', 3, 'COACH'),
+                                                       ('coach_sarah', 4, 'COACH'),
+                                                       ('coach_paul', 6, 'COACH'),
+                                                       ('user1', 1, 'JOUEUR'),
+                                                       ('user2', 1, 'JOUEUR'),
+                                                       ('user3', 1, 'JOUEUR'),
+                                                       ('user4', 2, 'JOUEUR'),
+                                                       ('user5', 2, 'JOUEUR'),
+                                                       ('user6', 2, 'JOUEUR'),
+                                                       ('user7', 3, 'JOUEUR'),
+                                                       ('user8', 3, 'JOUEUR'),
+                                                       ('user9', 4, 'JOUEUR'),
+                                                       ('user10', 4, 'JOUEUR'),
+                                                       ('user11', 6, 'JOUEUR'),
+                                                       ('user12', 6, 'JOUEUR'),
+                                                       ('user13', 5, 'JOUEUR'),
+                                                       ('user14', 5, 'JOUEUR'),
+                                                       ('user15', 3, 'JOUEUR');
+
+-- 5. MATCHS DE TEST (Pour ton nouveau MatchController)
+INSERT INTO matchs (type_sport_id, home_team_id, away_team_id, datetime, location, referee, status) VALUES
+                                                                                                        (1, 1, 2, '2024-06-15 20:45:00', 'Stade de France', 'M. Turpin', 'SCHEDULED'),
+                                                                                                        (1, 1, 2, '2024-07-20 18:00:00', 'Parc des Princes', 'Mme Frappart', 'SCHEDULED'),
+                                                                                                        (3, 3, 1, '2024-08-10 19:30:00', 'Arena Sportify', 'M. Lemoine', 'SCHEDULED'),
+                                                                                                        (4, 4, 3, '2024-08-22 20:00:00', 'Gymnase Central', 'Mme Durant', 'SCHEDULED'),
+                                                                                                        (6, 6, 1, '2024-09-05 21:00:00', 'Volley Dome', 'M. Perez', 'SCHEDULED'),
+                                                                                                        (5, 5, 2, '2024-09-12 10:00:00', 'Courts Municipaux', 'Mme Gomez', 'SCHEDULED');
+
+-- 5.1 DEMANDES DE MATCH (Coach -> Admin)
+INSERT INTO match_requests (requester_club_id, opponent_club_id, home_team_id, away_team_id, type_sport_id, requested_datetime, location, referee, requested_by, status) VALUES
+                                                                                                                                                                            (1, 3, 1, 3, 1, '2024-10-01 18:30:00', 'Stade Sportify', 'M. Roussel', 'coach_zidane', 'PENDING'),
+                                                                                                                                                                            (2, 1, 2, 1, 2, '2024-10-05 15:00:00', 'Rugby Park', 'Mme Klein', 'coach_marie', 'PENDING'),
+                                                                                                                                                                            (3, 4, 3, 4, 3, '2024-10-12 19:00:00', 'Arena Basket', 'M. Silva', 'coach_tony', 'PENDING'),
+                                                                                                                                                                            (6, 3, 6, 3, 6, '2024-10-20 20:30:00', 'Volley Dome', 'Mme Leroy', 'coach_paul', 'PENDING');
+
+-- 6. COMPOSITION DE TEST
+INSERT INTO match_composition (match_id, team_id, player_id, role, slot_index) VALUES
+                                                                                   (1, 1, 'user1', 'Attaquant', 1),
+                                                                                   (1, 1, 'user2', 'Milieu', 2);
+
+-- 7. Licences
 INSERT INTO licences (id, sport_id, type_licence, statut, membre_id) VALUES
                                                                          ('lic-001', 1, 'JOUEUR', 'EN_ATTENTE', 'user1'),
-                                                                         ('lic-002', 1, 'COACH', 'EN_ATTENTE', 'coach_zidane');
-
--- 6. Demandes d'adhésion
-INSERT INTO membership_requests (clubid, userid, status) VALUES (1, 'user1', 'PENDING');
-
----------------------------------------------------------
--- AJOUT CRUCIAL : LIAISON DU COACH AU CLUB
----------------------------------------------------------
--- Sans cette ligne, PostgresUserDAO.getClubIdByCoach('coach_zidane') renverra toujours -1
-INSERT INTO members (userid, clubid, role_in_club) VALUES
-    ('coach_zidane', 1, 'COACH');
-
----------------------------------------------------------
--- DONNÉES DE TEST POUR LES STATISTIQUES (SMALL_EVENTS)
----------------------------------------------------------
-
-INSERT INTO small_events (type, description, team_id, player_id, period, event_date) VALUES
--- Match 1
-('MATCH', 'Match de championnat vs Lyon', 1, NULL, 'Saison 2024', '2024-01-10 14:00:00'),
-('VICTOIRE', 'Résultat Match 1', 1, NULL, 'Saison 2024', '2024-01-10 16:00:00'),
-('GOAL', 'But magnifique de Alice', 1, 'user1', 'Saison 2024', '2024-01-10 14:30:00'),
-('GOAL', 'But de la tête de Bob', 1, 'user2', 'Saison 2024', '2024-01-10 15:15:00'),
--- Match 2
-('MATCH', 'Match amical vs Paris', 1, NULL, 'Saison 2024', '2024-02-15 18:00:00'),
-('CARD', 'Carton jaune pour Bob', 1, 'user2', 'Saison 2024', '2024-02-15 18:45:00'),
-('GOAL', 'Egalisation de Alice', 1, 'user1', 'Saison 2024', '2024-02-15 19:20:00'),
--- Match 3
-('MATCH', 'Quart de finale Coupe', 1, NULL, 'Saison 2024', '2024-03-20 20:45:00'),
-('DEFAITE', 'Résultat Match 3', 1, NULL, 'Saison 2024', '2024-03-20 22:30:00'),
-('CARD', 'Carton rouge Alice', 1, 'user1', 'Saison 2024', '2024-03-20 21:10:00'),
-('FAUTE', 'Faute technique Bob', 1, 'user2', 'Saison 2024', '2024-03-20 21:40:00');
+                                                                         ('lic-002', 1, 'COACH', 'EN_ATTENTE', 'coach_zidane'),
+                                                                         ('lic-003', 2, 'JOUEUR', 'EN_ATTENTE', 'user4'),
+                                                                         ('lic-004', 3, 'JOUEUR', 'EN_ATTENTE', 'user7'),
+                                                                         ('lic-005', 4, 'JOUEUR', 'EN_ATTENTE', 'user9'),
+                                                                         ('lic-006', 6, 'JOUEUR', 'EN_ATTENTE', 'user11'),
+                                                                         ('lic-007', 2, 'COACH', 'EN_ATTENTE', 'coach_marie'),
+                                                                         ('lic-008', 3, 'COACH', 'EN_ATTENTE', 'coach_tony');
