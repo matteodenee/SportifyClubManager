@@ -64,7 +64,7 @@
                             <goal>java</goal>
                         </goals>
                         <configuration>
-                            <mainClass>com.sportify.manager.frame.ClubManagementFrame</mainClass>
+                            <mainClass>com.sportify.manager.frame.AdminDashboardFrame</mainClass>
                             <classpathScope>compile</classpathScope>
                             <arguments>
                                 <argument>--module-path</argument>

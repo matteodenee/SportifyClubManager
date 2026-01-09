@@ -19,8 +19,7 @@ public class PostgresTypeSportDAO extends TypeSportDAO {
 
     @Override
     public TypeSport create(TypeSport typeSport) throws SQLException {
-        // Note : On utilise RETURNING id_type_sport pour récupérer l'ID généré par le SERIAL
-        String sql = "INSERT INTO type_sport (nom, description, nb_joueurs) VALUES (?, ?, ?) RETURNING id_type_sport";
+        String sql = "INSERT INTO type_sports (nom, description, nb_joueurs) VALUES (?, ?, ?) RETURNING id";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, typeSport.getNom());
@@ -29,7 +28,7 @@ public class PostgresTypeSportDAO extends TypeSportDAO {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    int idGenere = rs.getInt("id_type_sport");
+                    int idGenere = rs.getInt("id");
                     typeSport.setId(idGenere);
 
                     // Insertion liée des rôles et statistiques
@@ -49,7 +48,7 @@ public class PostgresTypeSportDAO extends TypeSportDAO {
     @Override
     public List<TypeSport> getAll() throws SQLException {
         List<TypeSport> typeSports = new ArrayList<>();
-        String sql = "SELECT * FROM type_sport ORDER BY nom";
+        String sql = "SELECT * FROM type_sports ORDER BY nom";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
@@ -67,7 +66,7 @@ public class PostgresTypeSportDAO extends TypeSportDAO {
 
     @Override
     public TypeSport getById(int id) throws SQLException {
-        String sql = "SELECT * FROM type_sport WHERE id_type_sport = ?";
+        String sql = "SELECT * FROM type_sports WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -84,7 +83,7 @@ public class PostgresTypeSportDAO extends TypeSportDAO {
 
     @Override
     public TypeSport getByNom(String nom) throws SQLException {
-        String sql = "SELECT * FROM type_sport WHERE nom = ?";
+        String sql = "SELECT * FROM type_sports WHERE nom = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, nom);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -101,7 +100,7 @@ public class PostgresTypeSportDAO extends TypeSportDAO {
 
     @Override
     public void update(TypeSport typeSport) throws SQLException {
-        String sql = "UPDATE type_sport SET nom = ?, description = ?, nb_joueurs = ? WHERE id_type_sport = ?";
+        String sql = "UPDATE type_sports SET nom = ?, description = ?, nb_joueurs = ? WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, typeSport.getNom());
             stmt.setString(2, typeSport.getDescription());
@@ -120,7 +119,7 @@ public class PostgresTypeSportDAO extends TypeSportDAO {
 
     @Override
     public void delete(int id) throws SQLException {
-        String sql = "DELETE FROM type_sport WHERE id_type_sport = ?";
+        String sql = "DELETE FROM type_sports WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, id);
             stmt.executeUpdate();
@@ -129,7 +128,7 @@ public class PostgresTypeSportDAO extends TypeSportDAO {
 
     @Override
     public boolean isUsedByClubs(int id) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM clubs c JOIN type_sport ts ON c.type = ts.nom WHERE ts.id_type_sport = ?";
+        String sql = "SELECT COUNT(*) FROM clubs WHERE sport_id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -143,7 +142,7 @@ public class PostgresTypeSportDAO extends TypeSportDAO {
 
     private TypeSport mapResultSetToTypeSport(ResultSet rs) throws SQLException {
         return new TypeSport(
-                rs.getInt("id_type_sport"),
+                rs.getInt("id"),
                 rs.getString("nom"),
                 rs.getString("description"),
                 rs.getInt("nb_joueurs")
@@ -151,7 +150,7 @@ public class PostgresTypeSportDAO extends TypeSportDAO {
     }
 
     private void insertRoles(int idTypeSport, List<String> roles) throws SQLException {
-        String sql = "INSERT INTO role_type_sport (id_type_sport, nom_role) VALUES (?, ?)";
+        String sql = "INSERT INTO sport_roles (sport_id, role_name) VALUES (?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             for (String role : roles) {
                 stmt.setInt(1, idTypeSport);
@@ -163,7 +162,7 @@ public class PostgresTypeSportDAO extends TypeSportDAO {
     }
 
     private void insertStatistiques(int idTypeSport, List<String> statistiques) throws SQLException {
-        String sql = "INSERT INTO statistique_type_sport (id_type_sport, nom_statistique) VALUES (?, ?)";
+        String sql = "INSERT INTO sport_stats (sport_id, stat_name) VALUES (?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             for (String stat : statistiques) {
                 stmt.setInt(1, idTypeSport);
@@ -176,11 +175,11 @@ public class PostgresTypeSportDAO extends TypeSportDAO {
 
     private List<String> getRoles(int idTypeSport) throws SQLException {
         List<String> roles = new ArrayList<>();
-        String sql = "SELECT nom_role FROM role_type_sport WHERE id_type_sport = ? ORDER BY nom_role";
+        String sql = "SELECT role_name FROM sport_roles WHERE sport_id = ? ORDER BY role_name";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, idTypeSport);
             try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) roles.add(rs.getString("nom_role"));
+                while (rs.next()) roles.add(rs.getString("role_name"));
             }
         }
         return roles;
@@ -188,25 +187,25 @@ public class PostgresTypeSportDAO extends TypeSportDAO {
 
     private List<String> getStatistiques(int idTypeSport) throws SQLException {
         List<String> stats = new ArrayList<>();
-        String sql = "SELECT nom_statistique FROM statistique_type_sport WHERE id_type_sport = ? ORDER BY nom_statistique";
+        String sql = "SELECT stat_name FROM sport_stats WHERE sport_id = ? ORDER BY stat_name";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, idTypeSport);
             try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) stats.add(rs.getString("nom_statistique"));
+                while (rs.next()) stats.add(rs.getString("stat_name"));
             }
         }
         return stats;
     }
 
     private void deleteRoles(int id) throws SQLException {
-        try (PreparedStatement stmt = connection.prepareStatement("DELETE FROM role_type_sport WHERE id_type_sport = ?")) {
+        try (PreparedStatement stmt = connection.prepareStatement("DELETE FROM sport_roles WHERE sport_id = ?")) {
             stmt.setInt(1, id);
             stmt.executeUpdate();
         }
     }
 
     private void deleteStatistiques(int id) throws SQLException {
-        try (PreparedStatement stmt = connection.prepareStatement("DELETE FROM statistique_type_sport WHERE id_type_sport = ?")) {
+        try (PreparedStatement stmt = connection.prepareStatement("DELETE FROM sport_stats WHERE sport_id = ?")) {
             stmt.setInt(1, id);
             stmt.executeUpdate();
         }

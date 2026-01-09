@@ -6,12 +6,11 @@ public class ClubFacade {
     private ClubManager clubManager;
 
     public ClubFacade() {
-        clubManager = new ClubManager();  // Initialiser ClubManager
+        clubManager = new ClubManager();
     }
 
-    public void createClub(String name, String description, String type, String meetingSchedule, int maxCapacity) {
-        clubManager.createClub(name, description, type, meetingSchedule, maxCapacity);
+    public void createClub(String name, String description, int sportId, String type, String meetingSchedule, int maxCapacity) {
+        // Transmission au manager
+        clubManager.createClub(name, description, sportId, type, meetingSchedule, maxCapacity);
     }
-
-    // Vous pouvez ajouter d'autres méthodes pour modifier et supprimer des clubs
 }

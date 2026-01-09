@@ -101,16 +101,23 @@ public class PostgresUserDAO extends UserDAO {
     // --- AUTRES MÉTHODES EXISTANTES ---
 
     public int getClubIdByCoach(String coachId) {
+        System.out.println("🔍 getClubIdByCoach(" + coachId + ")");
         String sql = "SELECT clubid FROM members WHERE userid = ? AND role_in_club = 'COACH'";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, coachId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) return rs.getInt("clubid");
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, coachId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                int clubId = rs.getInt("clubid");
+                System.out.println("✅ Club trouvé: " + clubId);
+                return clubId;
             }
+            System.out.println("❌ Aucun club trouvé pour ce coach");
+            return -1;
         } catch (SQLException e) {
-            System.err.println("Erreur lors de la récupération du club du coach: " + e.getMessage());
+            System.err.println("❌ Erreur SQL: " + e.getMessage());
+            e.printStackTrace();
+            return -1;
         }
-        return -1;
     }
 
     public static Connection getConnection() {
