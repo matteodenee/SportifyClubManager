@@ -161,7 +161,13 @@ public class CoachDashboardFrame extends Application {
         });
 
         btnTeam.setOnAction(e -> setDisplay(createCoachPlaceholder("Team Management", "Ce module sera ajouté prochainement.")));
-        btnTraining.setOnAction(e -> setDisplay(createCoachPlaceholder("Training Management", "Ce module sera ajouté prochainement.")));
+        btnTraining.setOnAction(e -> {
+            if (coachClubId == -1) {
+                showError("Erreur", "Aucun club n'est associé à votre compte coach.");
+                return;
+            }
+            TrainingFrame.open(currentCoach, coachClubId);
+        });
         btnEvents.setOnAction(e -> setDisplay(createCoachPlaceholder("Event Management", "Ce module sera ajouté prochainement.")));
         btnCommunication.setOnAction(e -> setDisplay(createCoachPlaceholder("Communication Management", "Ce module sera ajouté prochainement.")));
         btnEquipment.setOnAction(e -> setDisplay(createCoachPlaceholder("Equipement Management", "Ce module sera ajouté prochainement.")));

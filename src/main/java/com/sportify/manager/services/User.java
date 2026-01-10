@@ -16,6 +16,10 @@ public class User {
         this.role = role;
     }
 
+    public User(String id, String name, String email, String role) {
+        this(id, null, name, email, role);
+    }
+
     // Getters
     public String getId() { return id; }
     public String getPwd() { return pwd; }

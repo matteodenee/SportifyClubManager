@@ -38,4 +38,7 @@ public abstract class AbstractFactory {
     public abstract MatchDAO createMatchDAO();
     public abstract CompositionDAO createCompositionDAO();
     public abstract MatchRequestDAO createMatchRequestDAO();
+
+    // Entrainements
+    public abstract TrainingDAO createTrainingDAO();
 }

@@ -57,4 +57,10 @@ public class PostgresFactory extends AbstractFactory {
         Connection connection = PostgresUserDAO.getConnection();
         return new PostgresMatchRequestDAO(connection);
     }
+
+    @Override
+    public TrainingDAO createTrainingDAO() {
+        Connection connection = PostgresUserDAO.getConnection();
+        return new PostgresTrainingDAO(connection);
+    }
 }

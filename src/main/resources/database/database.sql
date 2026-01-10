@@ -259,3 +259,22 @@ INSERT INTO licences (id, sport_id, type_licence, statut, membre_id) VALUES
                                                                          ('lic-006', 6, 'JOUEUR', 'EN_ATTENTE', 'user11'),
                                                                          ('lic-007', 2, 'COACH', 'EN_ATTENTE', 'coach_marie'),
                                                                          ('lic-008', 3, 'COACH', 'EN_ATTENTE', 'coach_tony');
+
+---------------------------------------------------------
+-- ENTRAINEMENTS (Training Management)
+---------------------------------------------------------
+CREATE TABLE IF NOT EXISTS entrainements (
+    id SERIAL PRIMARY KEY,
+    date DATE NOT NULL,
+    heure TIME NOT NULL,
+    lieu VARCHAR(255) NOT NULL,
+    activite VARCHAR(255) NOT NULL,
+    club_id INT NOT NULL REFERENCES clubs(clubid) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS entrainement_participation (
+    entrainement_id INT REFERENCES entrainements(id) ON DELETE CASCADE,
+    user_id VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL,
+    PRIMARY KEY (entrainement_id, user_id)
+);
