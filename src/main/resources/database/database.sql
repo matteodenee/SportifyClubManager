@@ -1,6 +1,8 @@
 ---------------------------------------------------------
 -- NETTOYAGE (Ordre respectant les contraintes)
 ---------------------------------------------------------
+DROP TABLE IF EXISTS team_member CASCADE;
+DROP TABLE IF EXISTS team CASCADE;
 DROP TABLE IF EXISTS match_composition CASCADE;
 DROP TABLE IF EXISTS match_requests CASCADE;
 DROP TABLE IF EXISTS matchs CASCADE;
@@ -46,6 +48,27 @@ CREATE TABLE clubs (
                        requirements TEXT,
                        status VARCHAR(20) DEFAULT 'Active',
                        manager_id VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL
+);
+
+---------------------------------------------------------
+-- GESTION DES ÉQUIPES (TEAMS)
+---------------------------------------------------------
+
+-- 3.1 Table des équipes
+CREATE TABLE team (
+    id_team SERIAL PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL,
+    categorie VARCHAR(50), -- Ex: Senior, U18, etc.
+    id_club INT NOT NULL REFERENCES clubs(clubid) ON DELETE CASCADE,
+    id_coach VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL, -- Un coach est un User
+    id_type_sport INT REFERENCES type_sports(id) ON DELETE SET NULL
+);
+
+-- 3.2 Table de liaison Joueurs <-> Équipes (Many-to-Many)
+CREATE TABLE team_member (
+    id_team INT REFERENCES team(id_team) ON DELETE CASCADE,
+    id_user VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (id_team, id_user)
 );
 
 ---------------------------------------------------------
