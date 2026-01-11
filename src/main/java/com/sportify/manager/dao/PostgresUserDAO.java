@@ -70,6 +70,53 @@ public class PostgresUserDAO extends UserDAO {
     }
 
     @Override
+    public java.util.List<User> getUsersByRole(String role) throws SQLException {
+        java.util.List<User> users = new java.util.ArrayList<>();
+        if (role == null || role.isEmpty()) {
+            return users;
+        }
+        String sql = "SELECT id, password, name, email, role FROM users WHERE role = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, role);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    users.add(new User(
+                            rs.getString("id"),
+                            rs.getString("password"),
+                            rs.getString("name"),
+                            rs.getString("email"),
+                            rs.getString("role")
+                    ));
+                }
+            }
+        }
+        return users;
+    }
+
+    @Override
+    public java.util.List<User> getCoachesByClub(int clubId) throws SQLException {
+        java.util.List<User> users = new java.util.ArrayList<>();
+        String sql = "SELECT u.id, u.password, u.name, u.email, u.role " +
+                "FROM users u JOIN members m ON u.id = m.userid " +
+                "WHERE m.clubid = ? AND m.role_in_club = 'COACH'";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, clubId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    users.add(new User(
+                            rs.getString("id"),
+                            rs.getString("password"),
+                            rs.getString("name"),
+                            rs.getString("email"),
+                            rs.getString("role")
+                    ));
+                }
+            }
+        }
+        return users;
+    }
+
+    @Override
     public User getUserById(String id) {
         if (id == null || id.isEmpty()) {
             return null;

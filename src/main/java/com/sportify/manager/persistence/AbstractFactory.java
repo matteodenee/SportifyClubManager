@@ -33,9 +33,13 @@ public abstract class AbstractFactory {
     public abstract StatDAO createStatDAO();
     public abstract LicenceDAO createLicenceDAO();
     public abstract TypeSportDAO createTypeSportDAO();
+    public abstract TeamDAO createTeamDAO();
+    public abstract TrainingDAO createTrainingDAO();
 
     // Nouvelles méthodes pour les matchs et compositions
     public abstract MatchDAO createMatchDAO();
     public abstract CompositionDAO createCompositionDAO();
     public abstract MatchRequestDAO createMatchRequestDAO();
+    public abstract EventDAO createEventDAO();
+
 }

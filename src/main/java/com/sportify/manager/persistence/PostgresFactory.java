@@ -38,6 +38,18 @@ public class PostgresFactory extends AbstractFactory {
         return new PostgresTypeSportDAO(connection);
     }
 
+    @Override
+    public TeamDAO createTeamDAO() {
+        Connection connection = PostgresUserDAO.getConnection();
+        return new PostgresTeamDAO(connection);
+    }
+
+    @Override
+    public TrainingDAO createTrainingDAO() {
+        Connection connection = PostgresUserDAO.getConnection();
+        return new PostgresTrainingDAO(connection);
+    }
+
     // --- LES DEUX MÉTHODES MANQUANTES QUI CAUSENT L'ERREUR ---
 
     @Override
@@ -57,4 +69,14 @@ public class PostgresFactory extends AbstractFactory {
         Connection connection = PostgresUserDAO.getConnection();
         return new PostgresMatchRequestDAO(connection);
     }
+
+    @Override
+    public EventDAO createEventDAO() {
+        Connection connection = PostgresUserDAO.getConnection();
+        return new PostgresEventDAO(connection);
+    }
+
+
+
+
 }
