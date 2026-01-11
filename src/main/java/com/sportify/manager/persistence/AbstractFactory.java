@@ -38,4 +38,8 @@ public abstract class AbstractFactory {
     public abstract MatchDAO createMatchDAO();
     public abstract CompositionDAO createCompositionDAO();
     public abstract MatchRequestDAO createMatchRequestDAO();
+    
+    // Nouvelles méthodes pour les équipes et événements
+    public abstract TeamDAO createTeamDAO();
+    public abstract EventDAO createEventDAO();
 }

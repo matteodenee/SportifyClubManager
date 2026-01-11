@@ -121,6 +121,10 @@ public class PostgresUserDAO extends UserDAO {
     }
 
     public static Connection getConnection() {
+        // Force l'initialisation si nécessaire
+        if (instance == null) {
+            getInstance();
+        }
         return connection;
     }
 

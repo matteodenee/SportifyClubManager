@@ -1,6 +1,32 @@
 ---------------------------------------------------------
 -- NETTOYAGE (Ordre respectant les contraintes)
+-------------------------------------- 9. Table Composition des Matchs
+CREATE -- 11. Table Membres (Liaison User-Club)
+CREATE TABLE members (
+                         userid VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
+                         clubid INT REFERENCES clubs(clubid) ON DELETE CASCADE,
+                         role_in_club VARCHAR(50),
+                         PRIMARY KEY (userid, clubid)
+);
+
+-- 12. Demandes d'adhésionch_composition (
+                                   match_id INT REFERENCES matchs(id) ON DELETE CASCADE,
+                                   team_id INT REFERENCES clubs(clubid) ON DELETE CASCADE,
+                                   player_id VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
+                                   role VARCHAR(100),
+                                   slot_index INT,
+                                   PRIMARY KEY (match_id, team_id, slot_index)
+);
+
 ---------------------------------------------------------
+-- GESTION DES MEMBRES ET LICENCES
+---------------------------------------------------------
+
+-- 10. Table Licences------
+DROP TABLE IF EXISTS event_participation CASCADE;
+DROP TABLE IF EXISTS events CASCADE;
+DROP TABLE IF EXISTS team_member CASCADE;
+DROP TABLE IF EXISTS team CASCADE;
 DROP TABLE IF EXISTS match_composition CASCADE;
 DROP TABLE IF EXISTS match_requests CASCADE;
 DROP TABLE IF EXISTS matchs CASCADE;
@@ -52,21 +78,59 @@ CREATE TABLE clubs (
 -- GESTION DES RÔLES, STATS ET MATCHS
 ---------------------------------------------------------
 
--- 4. Rôles spécifiques par sport
+-- 4. Table des Équipes (Team Management)
+CREATE TABLE team (
+                      id SERIAL PRIMARY KEY,
+                      nom VARCHAR(100) NOT NULL,
+                      categorie VARCHAR(50),
+                      club_id INT REFERENCES clubs(clubid) ON DELETE CASCADE,
+                      id_coach VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL,
+                      id_type_sport INT REFERENCES type_sports(id) ON DELETE SET NULL
+);
+
+-- 4.1 Table des Membres d'Équipe
+CREATE TABLE team_member (
+                             team_id INT REFERENCES team(id) ON DELETE CASCADE,
+                             user_id VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
+                             PRIMARY KEY (team_id, user_id)
+);
+
+-- 5. Table des Événements (Event Management)
+CREATE TABLE events (
+                        id SERIAL PRIMARY KEY,
+                        nom VARCHAR(100) NOT NULL,
+                        description TEXT,
+                        date_debut TIMESTAMP NOT NULL,
+                        duree_minutes INT NOT NULL,
+                        lieu VARCHAR(255),
+                        type VARCHAR(50),
+                        club_id INT REFERENCES clubs(clubid) ON DELETE CASCADE,
+                        createur_id VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- 5.1 Table de Participation aux Événements (RSVP)
+CREATE TABLE event_participation (
+                                     event_id INT REFERENCES events(id) ON DELETE CASCADE,
+                                     user_id VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
+                                     status VARCHAR(20) NOT NULL, -- GOING, NOT_GOING, MAYBE
+                                     PRIMARY KEY (event_id, user_id)
+);
+
+-- 6. Rôles spécifiques par sport
 CREATE TABLE sport_roles (
                              id SERIAL PRIMARY KEY,
                              sport_id INT REFERENCES type_sports(id) ON DELETE CASCADE,
                              role_name VARCHAR(100) NOT NULL
 );
 
--- 5. Statistiques spécifiques par sport
+-- 7. Statistiques spécifiques par sport
 CREATE TABLE sport_stats (
                              id SERIAL PRIMARY KEY,
                              sport_id INT REFERENCES type_sports(id) ON DELETE CASCADE,
                              stat_name VARCHAR(100) NOT NULL
 );
 
--- 6. Table des Matchs (Nouveau)
+-- 8. Table des Matchs
 CREATE TABLE matchs (
                         id SERIAL PRIMARY KEY,
                         type_sport_id INT REFERENCES type_sports(id) ON DELETE CASCADE,
@@ -81,7 +145,7 @@ CREATE TABLE matchs (
                         away_score INT DEFAULT 0
 );
 
--- 6.1 Demandes de match (Coach -> Admin)
+-- 8.1 Demandes de match (Coach -> Admin)
 CREATE TABLE match_requests (
                                 id SERIAL PRIMARY KEY,
                                 requester_club_id INT REFERENCES clubs(clubid) ON DELETE CASCADE,
@@ -98,7 +162,7 @@ CREATE TABLE match_requests (
                                 match_id INT REFERENCES matchs(id) ON DELETE SET NULL
 );
 
--- 7. Table Composition des Matchs (Nouveau)
+-- 9. Table Composition des Matchs
 CREATE TABLE match_composition (
                                    match_id INT REFERENCES matchs(id) ON DELETE CASCADE,
                                    team_id INT REFERENCES clubs(clubid) ON DELETE CASCADE,
@@ -112,7 +176,7 @@ CREATE TABLE match_composition (
 -- GESTION DES MEMBRES ET LICENCES
 ---------------------------------------------------------
 
--- 8. Table Licences
+-- 10. Table Licences
 CREATE TABLE licences (
                           id VARCHAR(255) PRIMARY KEY,
                           sport_id INT REFERENCES type_sports(id) ON DELETE CASCADE,
@@ -126,7 +190,7 @@ CREATE TABLE licences (
                           commentaire_admin TEXT
 );
 
--- 9. Table Membres (Liaison User-Club)
+-- 11. Table Membres (Liaison User-Club)
 CREATE TABLE members (
                          userid VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
                          clubid INT REFERENCES clubs(clubid) ON DELETE CASCADE,
@@ -134,7 +198,7 @@ CREATE TABLE members (
                          PRIMARY KEY (userid, clubid)
 );
 
--- 10. Demandes d'adhésion
+-- 12. Demandes d'adhésion
 CREATE TABLE membership_requests (
                                      requestid SERIAL PRIMARY KEY,
                                      clubid INT REFERENCES clubs(clubid) ON DELETE CASCADE,
@@ -143,7 +207,7 @@ CREATE TABLE membership_requests (
                                      request_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 11. Événements (Stats de match légères)
+-- 13. Événements (Stats de match légères)
 CREATE TABLE small_events (
                               id SERIAL PRIMARY KEY,
                               type VARCHAR(50),
