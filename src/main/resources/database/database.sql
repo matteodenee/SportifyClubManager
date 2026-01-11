@@ -4,6 +4,8 @@
 DROP TABLE IF EXISTS match_composition CASCADE;
 DROP TABLE IF EXISTS match_requests CASCADE;
 DROP TABLE IF EXISTS matchs CASCADE;
+DROP TABLE IF EXISTS equipments CASCADE;
+DROP TABLE IF EXISTS equipment_types CASCADE;
 DROP TABLE IF EXISTS small_events CASCADE;
 DROP TABLE IF EXISTS membership_requests CASCADE;
 DROP TABLE IF EXISTS members CASCADE;
@@ -46,6 +48,20 @@ CREATE TABLE clubs (
                        requirements TEXT,
                        status VARCHAR(20) DEFAULT 'Active',
                        manager_id VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- 3.1 Types d'equipement
+CREATE TABLE equipment_types (
+                                 id SERIAL PRIMARY KEY,
+                                 name VARCHAR(100) UNIQUE NOT NULL,
+                                 description TEXT
+);
+
+-- 3.2 Equipements (minimal pour verifier l'usage)
+CREATE TABLE equipments (
+                             id SERIAL PRIMARY KEY,
+                             name VARCHAR(100) NOT NULL,
+                             type_id INT NOT NULL REFERENCES equipment_types(id) ON DELETE RESTRICT
 );
 
 ---------------------------------------------------------
@@ -259,3 +275,13 @@ INSERT INTO licences (id, sport_id, type_licence, statut, membre_id) VALUES
                                                                          ('lic-006', 6, 'JOUEUR', 'EN_ATTENTE', 'user11'),
                                                                          ('lic-007', 2, 'COACH', 'EN_ATTENTE', 'coach_marie'),
                                                                          ('lic-008', 3, 'COACH', 'EN_ATTENTE', 'coach_tony');
+
+-- 8. Types d'equipement
+INSERT INTO equipment_types (name, description) VALUES
+                                                    ('Ballons', 'Ballons officiels et entrainement'),
+                                                    ('Chasubles', 'Chasubles pour entrainement'),
+                                                    ('Cones', 'Cones pour ateliers');
+
+-- 8.1 Equipements de test
+INSERT INTO equipments (name, type_id) VALUES
+                                           ('Ballon officiel #1', 1);

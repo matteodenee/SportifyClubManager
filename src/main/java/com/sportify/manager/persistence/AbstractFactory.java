@@ -38,4 +38,7 @@ public abstract class AbstractFactory {
     public abstract MatchDAO createMatchDAO();
     public abstract CompositionDAO createCompositionDAO();
     public abstract MatchRequestDAO createMatchRequestDAO();
+
+    // Types d'equipement
+    public abstract EquipmentTypeDAO createEquipmentTypeDAO();
 }

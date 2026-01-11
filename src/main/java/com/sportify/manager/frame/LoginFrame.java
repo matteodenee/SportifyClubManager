@@ -105,7 +105,7 @@ public class LoginFrame extends Application {
     public void showLoginSuccess(User user) {
         String role = user.getRole().toUpperCase();
         switch (role) {
-            case "ADMIN": openClubManagementFrame(); break;
+            case "ADMIN": openClubManagementFrame(user); break;
             case "DIRECTOR": openDirectorDashboard(user); break;
             case "MEMBER": openMemberDashboard(user); break;
             case "COACH": openCoachDashboard(user); break;
@@ -127,12 +127,17 @@ public class LoginFrame extends Application {
         } catch (Exception e) { e.printStackTrace(); }
     }
 
-    public void openClubManagementFrame() {
+    public void openClubManagementFrame(User user) {
         try {
+            if (user == null || user.getRole() == null || !"ADMIN".equalsIgnoreCase(user.getRole())) {
+                messageLabel.setText("Acces reserve aux administrateurs.");
+                return;
+            }
             Connection connection = PostgresUserDAO.getConnection();
             ClubController clubController = new ClubController(connection);
             AdminDashboardFrame adminDashboardFrame = new AdminDashboardFrame();
             adminDashboardFrame.setClubController(clubController);
+            adminDashboardFrame.setCurrentUser(user);
             adminDashboardFrame.start(new Stage());
             closeCurrentStage();
         } catch (Exception e) { e.printStackTrace(); }

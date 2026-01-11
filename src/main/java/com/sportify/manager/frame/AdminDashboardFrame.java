@@ -1,15 +1,19 @@
 package com.sportify.manager.frame;
 
 import com.sportify.manager.controllers.ClubController;
+import com.sportify.manager.controllers.EquipmentTypeController;
 import com.sportify.manager.controllers.LicenceController;
 import com.sportify.manager.controllers.MatchController;
 import com.sportify.manager.controllers.MatchRequestController;
 import com.sportify.manager.controllers.TypeSportController;
 import com.sportify.manager.services.Club;
+import com.sportify.manager.services.EquipmentType;
+import com.sportify.manager.services.EquipmentTypeActionResult;
 import com.sportify.manager.services.Match;
 import com.sportify.manager.services.MatchStatus;
 import com.sportify.manager.services.MatchRequest;
 import com.sportify.manager.services.TypeSport;
+import com.sportify.manager.services.User;
 import com.sportify.manager.services.licence.Licence;
 import com.sportify.manager.services.licence.StatutLicence;
 import javafx.application.Application;
@@ -32,14 +36,16 @@ import java.util.List;
 public class AdminDashboardFrame extends Application {
     private ClubController clubController;
     private TypeSportController sportController = new TypeSportController();
+    private EquipmentTypeController equipmentTypeController = new EquipmentTypeController();
     private LicenceController licenceController = new LicenceController();
     private MatchController matchController = MatchController.getInstance();
     private MatchRequestController matchRequestController = MatchRequestController.getInstance();
+    private User currentUser;
 
     // Navigation & Layout
     private StackPane contentArea;
-    private VBox clubView, sportView, licenceAdminView, matchView;
-    private Button btnClubs, btnSports, btnLicences, btnMatchs;
+    private VBox clubView, sportView, equipmentTypeView, licenceAdminView, matchView;
+    private Button btnClubs, btnSports, btnEquipmentTypes, btnLicences, btnMatchs;
 
     // --- ÉLÉMENTS CLUB ---
     private TextField clubNameField, clubDescriptionField, meetingScheduleField, maxCapacityField;
@@ -56,6 +62,15 @@ public class AdminDashboardFrame extends Application {
     private TextArea sportStatsField = new TextArea();
     private TableView<TypeSport> sportTable;
     private TypeSport selectedTypeSport = null;
+
+    // --- ELEMENTS TYPE EQUIPEMENT ---
+    private TextField equipmentTypeNameField;
+    private TextArea equipmentTypeDescriptionField;
+    private TableView<EquipmentType> equipmentTypeTable;
+    private EquipmentType selectedEquipmentType = null;
+    private Label equipmentTypeMessageLabel;
+    private Button equipmentTypeUpdateBtn;
+    private Button equipmentTypeDeleteBtn;
     // --- ÉLÉMENTS LICENCES (CRITÈRE 7.2 & 7.5) ---
     private TableView<Licence> pendingLicenceTable;
     private TextArea adminCommentField;
@@ -85,6 +100,10 @@ public class AdminDashboardFrame extends Application {
         this.clubController = controller;
     }
 
+    public void setCurrentUser(User user) {
+        this.currentUser = user;
+    }
+
     @Override
     public void start(Stage primaryStage) {
         if (clubController == null) clubController = new ClubController(null);
@@ -103,20 +122,32 @@ public class AdminDashboardFrame extends Application {
 
         btnClubs = createMenuButton("🏢 Gestion Clubs", true);
         btnSports = createMenuButton("⚙ Type de Sports", false);
+        btnEquipmentTypes = createMenuButton("🏷️ Types d'equipement", false);
         btnLicences = createMenuButton("📜 Valider Licences", false);
         btnMatchs = createMenuButton("⚽ Gestion Matchs", false);
         Button btnLogout = createMenuButton("🚪 Déconnexion", false);
 
-        sidebar.getChildren().addAll(menuLabel, new Separator(), btnClubs, btnSports, btnLicences, btnMatchs, btnLogout);
+        sidebar.getChildren().addAll(
+                menuLabel,
+                new Separator(),
+                btnClubs,
+                btnSports,
+                btnEquipmentTypes,
+                btnLicences,
+                btnMatchs,
+                btnLogout
+        );
 
         // --- PRÉPARATION DES VUES ---
         createClubView();
         createSportView();
+        createEquipmentTypeView();
         createLicenceAdminView();
         createMatchView();
 
-        contentArea = new StackPane(clubView, sportView, licenceAdminView, matchView);
+        contentArea = new StackPane(clubView, sportView, equipmentTypeView, licenceAdminView, matchView);
         sportView.setVisible(false);
+        equipmentTypeView.setVisible(false);
         licenceAdminView.setVisible(false);
         matchView.setVisible(false);
 
@@ -128,6 +159,14 @@ public class AdminDashboardFrame extends Application {
         btnSports.setOnAction(e -> {
             switchView(sportView, btnSports);
             refreshSportList();
+        });
+        btnEquipmentTypes.setOnAction(e -> {
+            if (!isAdminUser()) {
+                showError("Acces refuse", "Seul un administrateur peut acceder a ce module.");
+                return;
+            }
+            switchView(equipmentTypeView, btnEquipmentTypes);
+            refreshEquipmentTypeList();
         });
         btnLicences.setOnAction(e -> {
             switchView(licenceAdminView, btnLicences);
@@ -472,16 +511,97 @@ public class AdminDashboardFrame extends Application {
         deleteSportBtn.setOnAction(e -> handleDeleteSport());
     }
 
+    // ==========================================
+    // VUE 5 : TYPES D'EQUIPEMENT
+    // ==========================================
+    private void createEquipmentTypeView() {
+        equipmentTypeView = new VBox(20);
+        equipmentTypeView.setPadding(new Insets(30));
+
+        Label title = new Label("Gestion des Types d'Equipement");
+        title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #34495e;");
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+        grid.setStyle("-fx-background-color: white; -fx-background-radius: 10; -fx-border-color: #dcdde1;");
+        grid.setMaxWidth(Double.MAX_VALUE);
+
+        equipmentTypeNameField = new TextField();
+        equipmentTypeDescriptionField = new TextArea();
+        equipmentTypeDescriptionField.setPrefRowCount(2);
+        equipmentTypeDescriptionField.setWrapText(true);
+
+        equipmentTypeNameField.setMaxWidth(Double.MAX_VALUE);
+        equipmentTypeDescriptionField.setMaxWidth(Double.MAX_VALUE);
+        GridPane.setHgrow(equipmentTypeNameField, Priority.ALWAYS);
+        GridPane.setHgrow(equipmentTypeDescriptionField, Priority.ALWAYS);
+
+        grid.add(new Label("Nom :"), 0, 0);
+        grid.add(equipmentTypeNameField, 1, 0);
+        grid.add(new Label("Description :"), 0, 1);
+        grid.add(equipmentTypeDescriptionField, 1, 1, 3, 1);
+
+        Button createBtn = new Button("➕ Creer");
+        styleButton(createBtn, "#3498db");
+        equipmentTypeUpdateBtn = new Button("💾 Modifier");
+        styleButton(equipmentTypeUpdateBtn, "#f39c12");
+        equipmentTypeDeleteBtn = new Button("🗑 Supprimer");
+        styleButton(equipmentTypeDeleteBtn, "#e74c3c");
+        equipmentTypeUpdateBtn.setDisable(true);
+        equipmentTypeDeleteBtn.setDisable(true);
+
+        HBox actions = new HBox(10, createBtn, equipmentTypeUpdateBtn, equipmentTypeDeleteBtn);
+        grid.add(actions, 1, 2, 3, 1);
+
+        equipmentTypeMessageLabel = new Label();
+        equipmentTypeMessageLabel.setStyle("-fx-text-fill: #e67e22; -fx-font-weight: bold;");
+
+        equipmentTypeTable = new TableView<>();
+        setupEquipmentTypeTable();
+
+        equipmentTypeView.getChildren().addAll(title, grid, equipmentTypeMessageLabel, equipmentTypeTable);
+
+        createBtn.setOnAction(e -> handleCreateEquipmentType());
+        equipmentTypeUpdateBtn.setOnAction(e -> handleUpdateEquipmentType());
+        equipmentTypeDeleteBtn.setOnAction(e -> handleDeleteEquipmentType());
+    }
+
+    private void setupEquipmentTypeTable() {
+        TableColumn<EquipmentType, Integer> idCol = new TableColumn<>("ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+        TableColumn<EquipmentType, String> nameCol = new TableColumn<>("Nom");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+        TableColumn<EquipmentType, String> descCol = new TableColumn<>("Description");
+        descCol.setCellValueFactory(new PropertyValueFactory<>("description"));
+
+        equipmentTypeTable.getColumns().addAll(idCol, nameCol, descCol);
+        equipmentTypeTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        equipmentTypeTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
+            selectedEquipmentType = selected;
+            boolean hasSelection = selected != null;
+            equipmentTypeUpdateBtn.setDisable(!hasSelection);
+            equipmentTypeDeleteBtn.setDisable(!hasSelection);
+            if (hasSelection) {
+                equipmentTypeNameField.setText(selected.getName());
+                equipmentTypeDescriptionField.setText(selected.getDescription());
+            }
+        });
+    }
+
     // --- LOGIQUE COMMUNE & UTILS ---
     private void switchView(VBox view, Button activeBtn) {
         clubView.setVisible(false);
         sportView.setVisible(false);
+        equipmentTypeView.setVisible(false);
         licenceAdminView.setVisible(false);
         matchView.setVisible(false);
         view.setVisible(true);
 
         btnClubs.setStyle(createMenuButtonStyle(btnClubs == activeBtn));
         btnSports.setStyle(createMenuButtonStyle(btnSports == activeBtn));
+        btnEquipmentTypes.setStyle(createMenuButtonStyle(btnEquipmentTypes == activeBtn));
         btnLicences.setStyle(createMenuButtonStyle(btnLicences == activeBtn));
         btnMatchs.setStyle(createMenuButtonStyle(btnMatchs == activeBtn));
     }
@@ -503,6 +623,22 @@ public class AdminDashboardFrame extends Application {
         showAlert(Alert.AlertType.ERROR, title, content);
     }
 
+    private void showEquipmentTypeMessage(EquipmentTypeActionResult result) {
+        if (equipmentTypeMessageLabel == null || result == null) {
+            return;
+        }
+        if (result.isSuccess()) {
+            equipmentTypeMessageLabel.setStyle("-fx-text-fill: #2ecc71; -fx-font-weight: bold;");
+        } else {
+            equipmentTypeMessageLabel.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+        }
+        equipmentTypeMessageLabel.setText(result.getMessage());
+    }
+
+    private boolean isAdminUser() {
+        return currentUser != null && "ADMIN".equalsIgnoreCase(currentUser.getRole());
+    }
+
     private void handleLogout(Stage currentStage) {
         currentStage.close();
         new LoginFrame().start(new Stage());
@@ -519,6 +655,11 @@ public class AdminDashboardFrame extends Application {
     private void refreshSportList() {
         sportTable.setItems(FXCollections.observableArrayList(sportController.handleGetAllTypeSports()));
         refreshSportChoices();
+    }
+
+    private void refreshEquipmentTypeList() {
+        List<EquipmentType> types = equipmentTypeController.handleListAll();
+        equipmentTypeTable.setItems(FXCollections.observableArrayList(types));
     }
 
     private void setupClubTable() {
@@ -714,6 +855,15 @@ public class AdminDashboardFrame extends Application {
         currentClubId = 0;
     }
 
+    private void clearEquipmentTypeFields() {
+        equipmentTypeNameField.clear();
+        equipmentTypeDescriptionField.clear();
+        equipmentTypeTable.getSelectionModel().clearSelection();
+        selectedEquipmentType = null;
+        equipmentTypeUpdateBtn.setDisable(true);
+        equipmentTypeDeleteBtn.setDisable(true);
+    }
+
     private void handleAddSport() {
         try {
             sportController.handleCreateTypeSport(sportNomField.getText(), sportDescField.getText(),
@@ -736,6 +886,54 @@ public class AdminDashboardFrame extends Application {
         if (selectedTypeSport == null) return;
         sportController.handleDeleteTypeSport(selectedTypeSport.getId());
         refreshSportList();
+    }
+
+    private void handleCreateEquipmentType() {
+        EquipmentTypeActionResult result = equipmentTypeController.handleCreate(
+                equipmentTypeNameField.getText(),
+                equipmentTypeDescriptionField.getText()
+        );
+        showEquipmentTypeMessage(result);
+        if (result.isSuccess()) {
+            refreshEquipmentTypeList();
+            clearEquipmentTypeFields();
+        }
+    }
+
+    private void handleUpdateEquipmentType() {
+        if (selectedEquipmentType == null) {
+            showEquipmentTypeMessage(EquipmentTypeActionResult.invalid("Selection requise."));
+            return;
+        }
+        EquipmentTypeActionResult result = equipmentTypeController.handleUpdate(
+                selectedEquipmentType,
+                equipmentTypeNameField.getText(),
+                equipmentTypeDescriptionField.getText()
+        );
+        showEquipmentTypeMessage(result);
+        if (result.isSuccess()) {
+            refreshEquipmentTypeList();
+            clearEquipmentTypeFields();
+        }
+    }
+
+    private void handleDeleteEquipmentType() {
+        if (selectedEquipmentType == null) {
+            showEquipmentTypeMessage(EquipmentTypeActionResult.invalid("Selection requise."));
+            return;
+        }
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Confirmer la suppression ?", ButtonType.YES, ButtonType.NO);
+        confirm.setHeaderText(null);
+        confirm.setTitle("Confirmation");
+        if (confirm.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) {
+            return;
+        }
+        EquipmentTypeActionResult result = equipmentTypeController.handleDelete(selectedEquipmentType.getId());
+        showEquipmentTypeMessage(result);
+        if (result.isSuccess()) {
+            refreshEquipmentTypeList();
+            clearEquipmentTypeFields();
+        }
     }
 
     private void handleAddMatch() {
