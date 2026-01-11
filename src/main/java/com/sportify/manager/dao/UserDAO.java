@@ -11,4 +11,7 @@ public abstract class UserDAO {
     // Nouvelle méthode pour l'inscription
     public abstract void registerUser(User user) throws SQLException;
 
+    public abstract java.util.List<User> getUsersByRole(String role) throws SQLException;
+    public abstract java.util.List<User> getCoachesByClub(int clubId) throws SQLException;
+
 }

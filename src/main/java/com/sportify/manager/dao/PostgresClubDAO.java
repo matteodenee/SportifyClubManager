@@ -96,6 +96,23 @@ public class PostgresClubDAO extends ClubDAO {
         return clubs;
     }
 
+    @Override
+    public List<Club> getClubsByManager(String managerId) throws SQLException {
+        List<Club> clubs = new ArrayList<>();
+        String query = "SELECT c.*, ts.nom as sport_nom FROM clubs c " +
+                "JOIN type_sports ts ON c.sport_id = ts.id " +
+                "WHERE c.manager_id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, managerId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    clubs.add(mapResultSetToClub(rs));
+                }
+            }
+        }
+        return clubs;
+    }
+
     // --- LE RESTE DES MÉTHODES RESTE IDENTIQUE ---
     // (Conserve tes méthodes addMemberToClub, getCurrentMembers, etc. telles quelles)
 

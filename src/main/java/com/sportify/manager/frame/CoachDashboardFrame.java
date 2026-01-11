@@ -1,6 +1,5 @@
 package com.sportify.manager.frame;
 
-
 import javafx.collections.FXCollections;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -12,14 +11,26 @@ import com.sportify.manager.controllers.CompositionController;
 import com.sportify.manager.controllers.MatchController;
 import com.sportify.manager.controllers.MatchRequestController;
 import com.sportify.manager.controllers.TypeSportController;
+import com.sportify.manager.controllers.TrainingController;
+import com.sportify.manager.controllers.EventController;
+import com.sportify.manager.controllers.EquipmentController;
+import com.sportify.manager.controllers.EquipmentTypeController;
 import com.sportify.manager.services.Club;
 import com.sportify.manager.services.Composition;
+import com.sportify.manager.services.Equipment;
+import com.sportify.manager.services.EquipmentType;
+import com.sportify.manager.services.EquipmentTypeActionResult;
+import com.sportify.manager.services.Event;
 import com.sportify.manager.services.Match;
 import com.sportify.manager.services.MatchRequest;
 import com.sportify.manager.services.MatchRequestStatus;
+import com.sportify.manager.services.ParticipationStatus;
+import com.sportify.manager.services.Reservation;
 import com.sportify.manager.services.RoleAssignment;
+import com.sportify.manager.services.Training;
 import com.sportify.manager.services.TypeSport;
 import com.sportify.manager.services.User;
+import com.sportify.manager.frame.CommunicationFrame;
 import com.sportify.manager.dao.PostgresUserDAO;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
@@ -45,7 +56,7 @@ import java.util.Map;
 
 public class CoachDashboardFrame extends Application {
     private User currentCoach;
-    private int coachClubId; // Stocke l'ID du club récupéré en BDD
+    private int coachClubId;
     private Club coachClub;
 
     private ClubController clubController;
@@ -53,8 +64,14 @@ public class CoachDashboardFrame extends Application {
     private MatchRequestController matchRequestController;
     private CompositionController compositionController;
     private TypeSportController sportController;
+    private TrainingController trainingController;
+    private EventController eventController = EventController.getInstance();
+    private EquipmentController equipmentController = new EquipmentController();
+    private EquipmentTypeController equipmentTypeController = new EquipmentTypeController();
 
     private StackPane displayArea;
+
+    // Match View
     private VBox matchView;
     private TableView<Match> matchTable;
     private TableView<MatchRequest> matchRequestTable;
@@ -75,10 +92,56 @@ public class CoachDashboardFrame extends Application {
     private List<Club> clubCache = new ArrayList<>();
     private Timeline matchRefreshTimeline;
 
+    // Training View
+    private VBox trainingView;
+    private VBox eventView;
+    private VBox communicationView;
+    private VBox equipmentView;
+    private VBox typeEquipmentView;
+    private DatePicker trainingDatePicker;
+    private TextField trainingTimeField;
+    private TextField trainingLocationField;
+    private TextField trainingActivityField;
+    private TextField trainingClubIdField;  // ← Cette ligne est importante
+    private TableView<Training> trainingTable;
+    private DatePicker trainingFromDatePicker;
+    private TextField participationUserIdField;
+    private ChoiceBox<ParticipationStatus> statusChoiceBox;
+    private ListView<String> participationList;
+    private Label trainingMessageLabel;
+
+    // Event View
+    private ListView<Event> eventList;
+    private TextField eventNameField;
+    private TextArea eventDescriptionField;
+    private DatePicker eventDatePicker;
+    private TextField eventTimeField;
+    private TextField eventDurationField;
+    private TextField eventLocationField;
+    private TextField eventTypeField;
+    private ChoiceBox<String> eventRsvpChoice;
+    private Label eventMessageLabel;
+
+    // Equipment View
+    private ListView<Equipment> equipmentList;
+    private ListView<Reservation> equipmentReservationList;
+    private TextField equipmentNameField;
+    private TextField equipmentTypeField;
+    private TextField equipmentConditionField;
+    private TextField equipmentQuantityField;
+    private DatePicker equipmentStartDate;
+    private DatePicker equipmentEndDate;
+    private Label equipmentMessageLabel;
+
+    // Type Equipment View
+    private ListView<EquipmentType> equipmentTypeList;
+    private TextField equipmentTypeNameField;
+    private TextArea equipmentTypeDescField;
+    private Label equipmentTypeMessageLabel;
+
     public CoachDashboardFrame(User user) {
         this.currentCoach = user;
         this.coachClubId = PostgresUserDAO.getInstance().getClubIdByCoach(user.getId());
-
     }
 
     @Override
@@ -90,6 +153,9 @@ public class CoachDashboardFrame extends Application {
         this.matchRequestController = MatchRequestController.getInstance();
         this.compositionController = CompositionController.getInstance();
         this.sportController = new TypeSportController();
+        this.trainingController = new TrainingController();
+        this.trainingController.setCoachDashboard(this);
+
         loadCoachClub();
 
         BorderPane root = new BorderPane();
@@ -111,7 +177,6 @@ public class CoachDashboardFrame extends Application {
         Button btnEvents = createMenuButton("📅 Event Management");
         Button btnCommunication = createMenuButton("💬 Communication Management");
         Button btnEquipment = createMenuButton("🧰 Equipement Management");
-        Button btnTypeEquipment = createMenuButton("🏷️ Type Equipement Management");
         Button btnLogout = createMenuButton("🚪 Déconnexion");
 
         sidebar.getChildren().addAll(
@@ -124,7 +189,6 @@ public class CoachDashboardFrame extends Application {
                 btnEvents,
                 btnCommunication,
                 btnEquipment,
-                btnTypeEquipment,
                 btnLogout
         );
 
@@ -135,7 +199,6 @@ public class CoachDashboardFrame extends Application {
         Label welcomeLabel = new Label("Tableau de bord : " + currentCoach.getName());
         welcomeLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #34495e;");
 
-        // Affichage de l'ID du club (utile pour vérifier que le lien BDD fonctionne)
         Label clubInfo = new Label("Club assigné ID : " + (coachClubId != -1 ? coachClubId : "Aucun club trouvé"));
         clubInfo.setStyle("-fx-text-fill: #7f8c8d;");
 
@@ -147,25 +210,40 @@ public class CoachDashboardFrame extends Application {
         displayArea.getChildren().add(placeholderText);
 
         createMatchView();
+        createTrainingView();
+        createEventView();
+        createCommunicationView();
+        createEquipmentView();
+        createTypeEquipmentView();
 
         // --- ACTIONS ---
-
-        // Utilisation de l'ID dynamique pour les stats
         btnStats.setOnAction(e -> {
             if (coachClubId != -1) {
                 StatFrame statFrame = new StatFrame();
-                statFrame.show(coachClubId); // ON PASSE L'ID DYNAMIQUE ICI
+                statFrame.show(coachClubId);
             } else {
                 placeholderText.setText("Erreur : Aucun club n'est associé à votre compte coach.");
             }
         });
 
         btnTeam.setOnAction(e -> setDisplay(createCoachPlaceholder("Team Management", "Ce module sera ajouté prochainement.")));
-        btnTraining.setOnAction(e -> setDisplay(createCoachPlaceholder("Training Management", "Ce module sera ajouté prochainement.")));
-        btnEvents.setOnAction(e -> setDisplay(createCoachPlaceholder("Event Management", "Ce module sera ajouté prochainement.")));
-        btnCommunication.setOnAction(e -> setDisplay(createCoachPlaceholder("Communication Management", "Ce module sera ajouté prochainement.")));
-        btnEquipment.setOnAction(e -> setDisplay(createCoachPlaceholder("Equipement Management", "Ce module sera ajouté prochainement.")));
-        btnTypeEquipment.setOnAction(e -> setDisplay(createCoachPlaceholder("Type Equipement Management", "Ce module sera ajouté prochainement.")));
+        btnTraining.setOnAction(e -> {
+            if (coachClubId == -1) {
+                showError("Erreur", "Aucun club n'est associé à votre compte coach.");
+                return;
+            }
+            setDisplay(trainingView);
+            refreshTrainingList();
+        });
+        btnEvents.setOnAction(e -> {
+            setDisplay(eventView);
+            refreshEventList();
+        });
+        btnCommunication.setOnAction(e -> setDisplay(communicationView));
+        btnEquipment.setOnAction(e -> {
+            setDisplay(equipmentView);
+            refreshEquipmentList();
+        });
         btnMatch.setOnAction(e -> {
             if (coachClubId == -1 || coachClub == null) {
                 showError("Erreur", "Aucun club n'est associé à votre compte coach.");
@@ -208,13 +286,261 @@ public class CoachDashboardFrame extends Application {
     }
 
     // ==========================================
+    // TRAINING MANAGEMENT
+    // ==========================================
+    private void createTrainingView() {
+        trainingView = new VBox(15);
+        trainingView.setPadding(new Insets(20));
+
+        Label title = new Label("Gestion des Entraînements");
+        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #34495e;");
+
+        // === FORMULAIRE DE PLANIFICATION ===
+        Label planLabel = new Label("Planifier un entraînement");
+        planLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+
+        GridPane formGrid = new GridPane();
+        formGrid.setHgap(10);
+        formGrid.setVgap(8);
+        formGrid.setPadding(new Insets(10));
+        formGrid.setStyle("-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #dcdde1;");
+
+        trainingDatePicker = new DatePicker();
+        trainingTimeField = new TextField();
+        trainingTimeField.setPromptText("18:30");
+        trainingLocationField = new TextField();
+        trainingLocationField.setPromptText("Terrain principal");
+        trainingActivityField = new TextField();
+        trainingActivityField.setPromptText("Endurance, technique...");
+
+        trainingClubIdField = new TextField();
+        trainingClubIdField.setText(String.valueOf(coachClubId));
+        trainingClubIdField.setDisable(true);
+
+        formGrid.add(new Label("Date :"), 0, 0);
+        formGrid.add(trainingDatePicker, 1, 0);
+        formGrid.add(new Label("Heure (HH:mm) :"), 2, 0);
+        formGrid.add(trainingTimeField, 3, 0);
+
+        formGrid.add(new Label("Lieu :"), 0, 1);
+        formGrid.add(trainingLocationField, 1, 1);
+        formGrid.add(new Label("Activité :"), 2, 1);
+        formGrid.add(trainingActivityField, 3, 1);
+
+        Button createButton = new Button("➕ Planifier");
+        createButton.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold;");
+        createButton.setOnAction(e -> handleCreateTraining());
+
+        HBox createRow = new HBox(10, createButton);
+        createRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+        // === LISTE DES ENTRAÎNEMENTS ===
+        Label upcomingLabel = new Label("Entraînements à venir");
+        upcomingLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+
+        HBox filterRow = new HBox(10);
+        filterRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        filterRow.getChildren().add(new Label("À partir du :"));
+        trainingFromDatePicker = new DatePicker(LocalDate.now());
+        Button refreshButton = new Button("🔄 Rafraîchir");
+        refreshButton.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
+        refreshButton.setOnAction(e -> refreshTrainingList());
+        filterRow.getChildren().addAll(trainingFromDatePicker, refreshButton);
+
+        trainingTable = new TableView<>();
+        trainingTable.setPrefHeight(220);
+        setupTrainingTable();
+
+        trainingTable.getSelectionModel().selectedItemProperty().addListener(
+                (obs, oldVal, newVal) -> loadTrainingParticipation()
+        );
+
+        // === PARTICIPATION ===
+        Label participationLabel = new Label("Participation");
+        participationLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+
+        participationUserIdField = new TextField();
+        participationUserIdField.setPromptText("User ID (ex: " + currentCoach.getId() + ")");
+
+        statusChoiceBox = new ChoiceBox<>(FXCollections.observableArrayList(ParticipationStatus.values()));
+        statusChoiceBox.getSelectionModel().select(ParticipationStatus.PENDING);
+
+        Button markButton = new Button("✓ Marquer");
+        markButton.setStyle("-fx-background-color: #f39c12; -fx-text-fill: white; -fx-font-weight: bold;");
+        markButton.setOnAction(e -> handleMarkParticipation());
+
+        HBox participationRow = new HBox(10, participationUserIdField, statusChoiceBox, markButton);
+        participationRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+        participationList = new ListView<>();
+        participationList.setPrefHeight(120);
+
+        trainingMessageLabel = new Label();
+        trainingMessageLabel.setStyle("-fx-text-fill: #e67e22; -fx-font-weight: bold;");
+
+        // === ASSEMBLY ===
+        trainingView.getChildren().addAll(
+                title,
+                new Separator(),
+                planLabel,
+                formGrid,
+                createRow,
+                new Separator(),
+                upcomingLabel,
+                filterRow,
+                trainingTable,
+                new Separator(),
+                participationLabel,
+                participationRow,
+                participationList,
+                trainingMessageLabel
+        );
+    }
+
+    private void setupTrainingTable() {
+        trainingTable.getColumns().clear();
+
+        TableColumn<Training, Integer> idCol = new TableColumn<>("ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+        idCol.setMinWidth(50);
+
+        TableColumn<Training, LocalDate> dateCol = new TableColumn<>("Date");
+        dateCol.setCellValueFactory(new PropertyValueFactory<>("date"));
+        dateCol.setMinWidth(100);
+
+        TableColumn<Training, LocalTime> timeCol = new TableColumn<>("Heure");
+        timeCol.setCellValueFactory(new PropertyValueFactory<>("heure"));
+        timeCol.setMinWidth(80);
+
+        TableColumn<Training, String> locationCol = new TableColumn<>("Lieu");
+        locationCol.setCellValueFactory(new PropertyValueFactory<>("lieu"));
+        locationCol.setMinWidth(150);
+
+        TableColumn<Training, String> activityCol = new TableColumn<>("Activité");
+        activityCol.setCellValueFactory(new PropertyValueFactory<>("activite"));
+        activityCol.setMinWidth(150);
+
+        trainingTable.getColumns().addAll(idCol, dateCol, timeCol, locationCol, activityCol);
+        trainingTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        trainingTable.setPlaceholder(new Label("Aucun entraînement à afficher"));
+    }
+
+    private void handleCreateTraining() {
+        trainingController.onCreate();
+    }
+
+    private void refreshTrainingList() {
+        trainingController.onRefresh();
+    }
+
+    private void loadTrainingParticipation() {
+        trainingController.onLoadParticipation();
+    }
+
+    private void handleMarkParticipation() {
+        trainingController.onMarkParticipation();
+    }
+
+    // Méthodes accesseurs pour TrainingController (similaires à TrainingFrame)
+    public LocalDate getTrainingDate() {
+        return trainingDatePicker != null ? trainingDatePicker.getValue() : null;
+    }
+
+    public String getTrainingTime() {
+        return trainingTimeField != null ? trainingTimeField.getText() : "";
+    }
+
+    public String getTrainingLocation() {
+        return trainingLocationField != null ? trainingLocationField.getText() : "";
+    }
+
+    public String getTrainingActivity() {
+        return trainingActivityField != null ? trainingActivityField.getText() : "";
+    }
+
+    public String getClubId() {
+        return trainingClubIdField != null ? trainingClubIdField.getText() : "";
+    }
+
+    public LocalDate getFromDate() {
+        return trainingFromDatePicker != null ? trainingFromDatePicker.getValue() : null;
+    }
+
+    public int getSelectedTrainingId() {
+        if (trainingTable == null || trainingTable.getSelectionModel().getSelectedItem() == null) {
+            return -1;
+        }
+        Training selected = trainingTable.getSelectionModel().getSelectedItem();
+        return selected.getId();
+    }
+
+    public String getParticipationUserId() {
+        return participationUserIdField != null ? participationUserIdField.getText() : "";
+    }
+
+    public ParticipationStatus getSelectedStatus() {
+        ParticipationStatus status = statusChoiceBox != null ? statusChoiceBox.getValue() : null;
+        return status != null ? status : ParticipationStatus.PENDING;
+    }
+
+    public void setTrainings(List<Training> trainings) {
+        if (trainingTable == null) {
+            return;
+        }
+        trainingTable.setItems(FXCollections.observableArrayList(trainings));
+    }
+
+    public void setParticipation(Map<User, ParticipationStatus> participation) {
+        if (participationList == null) {
+            return;
+        }
+        List<String> rows = new ArrayList<>();
+        for (Map.Entry<User, ParticipationStatus> entry : participation.entrySet()) {
+            User user = entry.getKey();
+            ParticipationStatus status = entry.getValue();
+            rows.add(user.getId() + " - " + user.getName() + " (" + status + ")");
+        }
+        participationList.setItems(FXCollections.observableArrayList(rows));
+    }
+
+    public void showTrainingSuccess(String message) {
+        if (trainingMessageLabel != null) {
+            trainingMessageLabel.setStyle("-fx-text-fill: #2ecc71; -fx-font-weight: bold;");
+            trainingMessageLabel.setText(message);
+        }
+    }
+
+    public void showTrainingError(String message) {
+        if (trainingMessageLabel != null) {
+            trainingMessageLabel.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+            trainingMessageLabel.setText(message);
+        }
+    }
+
+    public void clearParticipation() {
+        clearParticipationList();
+    }
+
+    public void clearTrainingForm() {
+        if (trainingDatePicker != null) trainingDatePicker.setValue(null);
+        if (trainingTimeField != null) trainingTimeField.clear();
+        if (trainingLocationField != null) trainingLocationField.clear();
+        if (trainingActivityField != null) trainingActivityField.clear();
+    }
+
+    private void clearParticipationList() {
+        if (participationList != null) {
+            participationList.getItems().clear();
+        }
+    }
+
+    // ==========================================
     // MATCHS COACH
     // ==========================================
     private void createMatchView() {
         matchView = new VBox(20);
         matchView.setPadding(new Insets(20));
 
-        // Titre
         Label title = new Label("Matchs du Club");
         title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #34495e;");
 
@@ -225,7 +551,6 @@ public class CoachDashboardFrame extends Application {
         formGrid.setPadding(new Insets(15));
         formGrid.setStyle("-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #dcdde1;");
 
-        // Initialisation des champs
         opponentClubCombo = new ComboBox<>();
         opponentClubCombo.setPromptText("Club adverse");
 
@@ -244,7 +569,6 @@ public class CoachDashboardFrame extends Application {
         matchRefereeField = new TextField();
         matchRefereeField.setPromptText("Nom de l'arbitre");
 
-        // Layout du formulaire
         formGrid.add(new Label("Adversaire :"), 0, 0);
         formGrid.add(opponentClubCombo, 1, 0);
         formGrid.add(new Label("Lieu :"), 2, 0);
@@ -260,7 +584,6 @@ public class CoachDashboardFrame extends Application {
         formGrid.add(new Label("Arbitre :"), 2, 2);
         formGrid.add(matchRefereeField, 3, 2);
 
-        // Boutons
         Button btnCreate = new Button("➕ Demander");
         btnCreate.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold;");
 
@@ -270,13 +593,10 @@ public class CoachDashboardFrame extends Application {
         HBox actions = new HBox(10, btnCreate, btnCompose);
         formGrid.add(actions, 1, 3, 3, 1);
 
-        // === LABEL MESSAGE ===
-        matchMessageLabel = new Label(""); // ⚠️ IMPORTANT: Initialiser avec chaîne vide
+        matchMessageLabel = new Label("");
         matchMessageLabel.setStyle("-fx-text-fill: #e67e22; -fx-font-weight: bold;");
 
         // === TABLEAUX ===
-
-        // Table des demandes de match
         HBox requestHeader = new HBox(10);
         matchRequestSearchField = new TextField();
         matchRequestSearchField.setPromptText("Rechercher (club/statut/date)...");
@@ -289,7 +609,6 @@ public class CoachDashboardFrame extends Application {
         matchRequestTable.setMinHeight(100);
         setupMatchRequestTable();
 
-        // Table des matchs
         HBox matchHeader = new HBox(10);
         matchSearchField = new TextField();
         matchSearchField.setPromptText("Rechercher (adversaire/statut/date)...");
@@ -379,9 +698,7 @@ public class CoachDashboardFrame extends Application {
             });
             return row;
         });
-
     }
-
 
     private void setupMatchRequestTable() {
         matchRequestTable.getColumns().clear();
@@ -425,7 +742,6 @@ public class CoachDashboardFrame extends Application {
         matchRequestTable.getColumns().addAll(idCol, opponentCol, dateCol, statusCol);
         matchRequestTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         matchRequestTable.setPlaceholder(new Label("Aucune demande"));
-
     }
 
     private void handleCreateMatchRequest() {
@@ -600,8 +916,6 @@ public class CoachDashboardFrame extends Application {
         }
     }
 
-
-
     private void refreshMatchRequestList() {
         if (coachClubId <= 0) {
             matchRequestTable.setItems(javafx.collections.FXCollections.observableArrayList());
@@ -647,11 +961,370 @@ public class CoachDashboardFrame extends Application {
         matchRefereeField.clear();
     }
 
+    // ==========================================
+    // EVENT MANAGEMENT
+    // ==========================================
+    private void createEventView() {
+        eventView = new VBox(15);
+        eventView.setPadding(new Insets(20));
+
+        Label title = new Label("Event Management");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+
+        eventNameField = new TextField();
+        eventNameField.setPromptText("Nom");
+        eventDescriptionField = new TextArea();
+        eventDescriptionField.setPromptText("Description");
+        eventDescriptionField.setPrefRowCount(3);
+        eventDatePicker = new DatePicker();
+        eventTimeField = new TextField();
+        eventTimeField.setPromptText("Heure (HH:mm)");
+        eventDurationField = new TextField();
+        eventDurationField.setPromptText("Durée (minutes)");
+        eventLocationField = new TextField();
+        eventLocationField.setPromptText("Lieu");
+        eventTypeField = new TextField();
+        eventTypeField.setPromptText("Type");
+
+        Button createBtn = new Button("Créer");
+        createBtn.setOnAction(e -> handleCreateEvent());
+
+        eventMessageLabel = new Label();
+        eventMessageLabel.setStyle("-fx-text-fill: #7f8c8d;");
+
+        eventList = new ListView<>();
+        eventList.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Event item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getNom() + " | " + formatDateTime(item.getDateDebut()));
+                }
+            }
+        });
+
+        eventRsvpChoice = new ChoiceBox<>(FXCollections.observableArrayList("GOING", "MAYBE", "NOT_GOING"));
+        eventRsvpChoice.getSelectionModel().selectFirst();
+        Button rsvpBtn = new Button("RSVP");
+        rsvpBtn.setOnAction(e -> handleRsvpToEvent());
+
+        HBox rsvpBox = new HBox(10, eventRsvpChoice, rsvpBtn);
+
+        eventView.getChildren().addAll(
+                title,
+                new Label("Nouvel événement"),
+                eventNameField,
+                eventDescriptionField,
+                new HBox(10, eventDatePicker, eventTimeField),
+                new HBox(10, eventDurationField, eventLocationField),
+                eventTypeField,
+                createBtn,
+                eventMessageLabel,
+                new Separator(),
+                new Label("Événements du club"),
+                eventList,
+                rsvpBox
+        );
+    }
+
+    private void handleCreateEvent() {
+        if (coachClubId <= 0) {
+            showError("Erreur", "Aucun club associé.");
+            return;
+        }
+        LocalDate date = eventDatePicker.getValue();
+        LocalTime time = parseTime(eventTimeField.getText());
+        if (date == null || time == null) {
+            eventMessageLabel.setText("Date/heure invalides.");
+            return;
+        }
+        LocalDateTime start = LocalDateTime.of(date, time);
+        int duration;
+        try {
+            duration = Integer.parseInt(eventDurationField.getText().trim());
+        } catch (Exception e) {
+            eventMessageLabel.setText("Durée invalide.");
+            return;
+        }
+        boolean ok = eventController.createEvent(
+                eventNameField.getText(),
+                eventDescriptionField.getText(),
+                start,
+                duration,
+                eventLocationField.getText(),
+                eventTypeField.getText(),
+                coachClubId,
+                currentCoach.getId()
+        );
+        eventMessageLabel.setText(ok ? "Événement créé." : eventController.getLastError());
+        if (ok) {
+            refreshEventList();
+        }
+    }
+
+    private void handleRsvpToEvent() {
+        Event selected = eventList.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            eventMessageLabel.setText("Sélectionnez un événement.");
+            return;
+        }
+        String status = eventRsvpChoice.getValue();
+        boolean ok = eventController.rsvpToEvent(selected.getId(), currentCoach.getId(), status);
+        eventMessageLabel.setText(ok ? "RSVP enregistré." : eventController.getLastError());
+    }
+
+    private void refreshEventList() {
+        List<Event> events = eventController.getEventsByClub(coachClubId);
+        eventList.setItems(FXCollections.observableArrayList(events == null ? List.of() : events));
+    }
+
+    // ==========================================
+    // COMMUNICATION
+    // ==========================================
+    private void createCommunicationView() {
+        communicationView = new VBox(12);
+        communicationView.setPadding(new Insets(20));
+
+        Label title = new Label("Communication Management");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+
+        Button openChat = new Button("Ouvrir le chat");
+        openChat.setOnAction(e -> new CommunicationFrame(new Stage()));
+
+        communicationView.getChildren().addAll(title, openChat);
+    }
+
+    // ==========================================
+    // EQUIPMENT MANAGEMENT
+    // ==========================================
+    private void createEquipmentView() {
+        equipmentView = new VBox(15);
+        equipmentView.setPadding(new Insets(20));
+
+        Label title = new Label("Equipement Management");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+
+        equipmentNameField = new TextField();
+        equipmentNameField.setPromptText("Nom");
+        equipmentTypeField = new TextField();
+        equipmentTypeField.setPromptText("Type");
+        equipmentConditionField = new TextField();
+        equipmentConditionField.setPromptText("État");
+        equipmentQuantityField = new TextField();
+        equipmentQuantityField.setPromptText("Quantité");
+
+        Button addBtn = new Button("Ajouter");
+        addBtn.setOnAction(e -> handleAddEquipment());
+
+        equipmentMessageLabel = new Label();
+        equipmentMessageLabel.setStyle("-fx-text-fill: #7f8c8d;");
+
+        equipmentList = new ListView<>();
+        equipmentList.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Equipment item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName() + " | " + item.getType() + " | qty=" + item.getQuantity());
+                }
+            }
+        });
+
+        equipmentStartDate = new DatePicker();
+        equipmentEndDate = new DatePicker();
+        Button reserveBtn = new Button("Réserver");
+        reserveBtn.setOnAction(e -> handleReserveEquipment());
+
+        equipmentReservationList = new ListView<>();
+        equipmentReservationList.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Reservation item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText("Res#" + item.getId() + " | eq=" + item.getEquipmentId()
+                            + " | " + item.getUserId() + " | " + item.getStartDate()
+                            + " -> " + item.getEndDate() + " | " + item.getStatus());
+                }
+            }
+        });
+        Button approveBtn = new Button("Approuver");
+        approveBtn.setOnAction(e -> handleReservationStatusUpdate("APPROVED"));
+        Button rejectBtn = new Button("Refuser");
+        rejectBtn.setOnAction(e -> handleReservationStatusUpdate("REJECTED"));
+
+        equipmentView.getChildren().addAll(
+                title,
+                new Label("Ajouter un équipement"),
+                equipmentNameField,
+                new HBox(10, equipmentTypeField, equipmentConditionField),
+                equipmentQuantityField,
+                addBtn,
+                equipmentMessageLabel,
+                new Separator(),
+                new Label("Liste des équipements"),
+                equipmentList,
+                new HBox(10, equipmentStartDate, equipmentEndDate, reserveBtn),
+                new Separator(),
+                new Label("Réservations du club"),
+                equipmentReservationList,
+                new HBox(10, approveBtn, rejectBtn)
+        );
+    }
+
+    private void handleAddEquipment() {
+        int qty;
+        try {
+            qty = Integer.parseInt(equipmentQuantityField.getText().trim());
+        } catch (Exception e) {
+            equipmentMessageLabel.setText("Quantité invalide.");
+            return;
+        }
+        boolean ok = equipmentController.handleCreateEquipment(
+                equipmentNameField.getText(),
+                equipmentTypeField.getText(),
+                equipmentConditionField.getText(),
+                qty,
+                coachClubId
+        );
+        equipmentMessageLabel.setText(ok ? "Équipement ajouté." : equipmentController.getLastError());
+        if (ok) {
+            refreshEquipmentList();
+        }
+    }
+
+    private void handleReserveEquipment() {
+        Equipment selected = equipmentList.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            equipmentMessageLabel.setText("Sélectionnez un équipement.");
+            return;
+        }
+        LocalDate start = equipmentStartDate.getValue();
+        LocalDate end = equipmentEndDate.getValue();
+        boolean ok = equipmentController.handleReserveEquipment(selected.getId(), currentCoach.getId(), start, end);
+        equipmentMessageLabel.setText(ok ? "Réservation envoyée." : equipmentController.getLastError());
+    }
+
+    private void refreshEquipmentList() {
+        List<Equipment> list = equipmentController.handleViewAllEquipment();
+        if (list != null && coachClubId > 0) {
+            list = list.stream().filter(e -> e != null && e.getClubId() == coachClubId).toList();
+        }
+        equipmentList.setItems(FXCollections.observableArrayList(list == null ? List.of() : list));
+        refreshEquipmentReservations();
+    }
+
+    private void refreshEquipmentReservations() {
+        if (coachClubId <= 0) {
+            equipmentReservationList.setItems(FXCollections.observableArrayList());
+            return;
+        }
+        List<Reservation> reservations = equipmentController.handleReservationsByClub(coachClubId);
+        equipmentReservationList.setItems(FXCollections.observableArrayList(reservations == null ? List.of() : reservations));
+    }
+
+    private void handleReservationStatusUpdate(String status) {
+        Reservation selected = equipmentReservationList.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            equipmentMessageLabel.setText("Sélectionnez une réservation.");
+            return;
+        }
+        boolean ok = equipmentController.handleUpdateReservationStatus(selected.getId(), status);
+        equipmentMessageLabel.setText(ok ? "Statut mis à jour." : equipmentController.getLastError());
+        if (ok) {
+            refreshEquipmentReservations();
+        }
+    }
+
+    // ==========================================
+    // TYPE EQUIPMENT MANAGEMENT
+    // ==========================================
+    private void createTypeEquipmentView() {
+        typeEquipmentView = new VBox(15);
+        typeEquipmentView.setPadding(new Insets(20));
+
+        Label title = new Label("Type Equipement Management");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+
+        equipmentTypeNameField = new TextField();
+        equipmentTypeNameField.setPromptText("Nom");
+        equipmentTypeDescField = new TextArea();
+        equipmentTypeDescField.setPromptText("Description");
+        equipmentTypeDescField.setPrefRowCount(3);
+
+        Button createBtn = new Button("Créer");
+        createBtn.setOnAction(e -> handleCreateEquipmentType());
+
+        Button deleteBtn = new Button("Supprimer");
+        deleteBtn.setOnAction(e -> handleDeleteEquipmentType());
+
+        equipmentTypeMessageLabel = new Label();
+        equipmentTypeMessageLabel.setStyle("-fx-text-fill: #7f8c8d;");
+
+        equipmentTypeList = new ListView<>();
+        equipmentTypeList.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(EquipmentType item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName());
+                }
+            }
+        });
+
+        typeEquipmentView.getChildren().addAll(
+                title,
+                new Label("Nouveau type"),
+                equipmentTypeNameField,
+                equipmentTypeDescField,
+                new HBox(10, createBtn, deleteBtn),
+                equipmentTypeMessageLabel,
+                new Separator(),
+                new Label("Types existants"),
+                equipmentTypeList
+        );
+    }
+
+    private void handleCreateEquipmentType() {
+        EquipmentTypeActionResult result = equipmentTypeController.handleCreate(
+                equipmentTypeNameField.getText(),
+                equipmentTypeDescField.getText()
+        );
+        equipmentTypeMessageLabel.setText(result.getMessage());
+        if (result.isSuccess()) {
+            refreshEquipmentTypeList();
+        }
+    }
+
+    private void handleDeleteEquipmentType() {
+        EquipmentType selected = equipmentTypeList.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            equipmentTypeMessageLabel.setText("Sélectionnez un type.");
+            return;
+        }
+        EquipmentTypeActionResult result = equipmentTypeController.handleDelete(selected.getId());
+        equipmentTypeMessageLabel.setText(result.getMessage());
+        if (result.isSuccess()) {
+            refreshEquipmentTypeList();
+        }
+    }
+
+    private void refreshEquipmentTypeList() {
+        List<EquipmentType> list = equipmentTypeController.handleListAll();
+        equipmentTypeList.setItems(FXCollections.observableArrayList(list == null ? List.of() : list));
+    }
+
     private void setDisplay(javafx.scene.Node content) {
         displayArea.getChildren().clear();
         displayArea.getChildren().add(content);
     }
-
 
     private String getOpponentName(int clubId) {
         for (Club club : clubCache) {
@@ -708,7 +1381,6 @@ public class CoachDashboardFrame extends Application {
             lastRefreshLabel.setText("Dernière mise à jour : " + formatDateTime(LocalDateTime.now()));
         }
     }
-
 
     private LocalTime parseTime(String value) {
         if (value == null || value.isBlank()) return null;

@@ -12,6 +12,7 @@ public abstract class ClubDAO {
     public abstract void deleteClub(int clubID) throws SQLException;
     public abstract Club getClubById(int clubID) throws SQLException;
     public abstract List<Club> getAllClubs() throws SQLException;
+    public abstract List<Club> getClubsByManager(String managerId) throws SQLException;
 
     // --- Gestion Directe des Membres (Action Admin/Système) ---
     public abstract void addMemberToClub(int clubId, String userId) throws SQLException;

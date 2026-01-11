@@ -70,6 +70,53 @@ public class PostgresUserDAO extends UserDAO {
     }
 
     @Override
+    public java.util.List<User> getUsersByRole(String role) throws SQLException {
+        java.util.List<User> users = new java.util.ArrayList<>();
+        if (role == null || role.isEmpty()) {
+            return users;
+        }
+        String sql = "SELECT id, password, name, email, role FROM users WHERE role = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, role);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    users.add(new User(
+                            rs.getString("id"),
+                            rs.getString("password"),
+                            rs.getString("name"),
+                            rs.getString("email"),
+                            rs.getString("role")
+                    ));
+                }
+            }
+        }
+        return users;
+    }
+
+    @Override
+    public java.util.List<User> getCoachesByClub(int clubId) throws SQLException {
+        java.util.List<User> users = new java.util.ArrayList<>();
+        String sql = "SELECT u.id, u.password, u.name, u.email, u.role " +
+                "FROM users u JOIN members m ON u.id = m.userid " +
+                "WHERE m.clubid = ? AND m.role_in_club = 'COACH'";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, clubId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    users.add(new User(
+                            rs.getString("id"),
+                            rs.getString("password"),
+                            rs.getString("name"),
+                            rs.getString("email"),
+                            rs.getString("role")
+                    ));
+                }
+            }
+        }
+        return users;
+    }
+
+    @Override
     public User getUserById(String id) {
         if (id == null || id.isEmpty()) {
             return null;
@@ -118,6 +165,23 @@ public class PostgresUserDAO extends UserDAO {
             e.printStackTrace();
             return -1;
         }
+    }
+
+    public int getClubIdByMember(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return -1;
+        }
+        String sql = "SELECT clubid FROM members WHERE userid = ? LIMIT 1";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("clubid");
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur SQL getClubIdByMember: " + e.getMessage());
+        }
+        return -1;
     }
 
     public static Connection getConnection() {
