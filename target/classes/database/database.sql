@@ -8,6 +8,9 @@ DROP TABLE IF EXISTS match_requests CASCADE;
 DROP TABLE IF EXISTS matchs CASCADE;
 DROP TABLE IF EXISTS event_participation CASCADE;
 DROP TABLE IF EXISTS events CASCADE;
+DROP TABLE IF EXISTS equipment_reservations CASCADE;
+DROP TABLE IF EXISTS equipments CASCADE;
+DROP TABLE IF EXISTS equipment_types CASCADE;
 DROP TABLE IF EXISTS small_events CASCADE;
 DROP TABLE IF EXISTS membership_requests CASCADE;
 DROP TABLE IF EXISTS members CASCADE;
@@ -127,6 +130,34 @@ CREATE TABLE event_participation (
                                      PRIMARY KEY (event_id, user_id)
 );
 
+-- 6.5 Types d'equipement
+CREATE TABLE equipment_types (
+                                 id SERIAL PRIMARY KEY,
+                                 name VARCHAR(100) NOT NULL,
+                                 description TEXT
+);
+
+-- 6.6 Equipements
+CREATE TABLE equipments (
+                            id SERIAL PRIMARY KEY,
+                            name VARCHAR(100) NOT NULL,
+                            type VARCHAR(100) NOT NULL,
+                            condition VARCHAR(100) NOT NULL,
+                            quantity INT NOT NULL,
+                            type_id INT REFERENCES equipment_types(id) ON DELETE SET NULL,
+                            club_id INT REFERENCES clubs(clubid) ON DELETE SET NULL
+);
+
+-- 6.7 Reservations d'equipements
+CREATE TABLE equipment_reservations (
+                                        id SERIAL PRIMARY KEY,
+                                        equipment_id INT REFERENCES equipments(id) ON DELETE CASCADE,
+                                        user_id VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
+                                        start_date DATE NOT NULL,
+                                        end_date DATE NOT NULL,
+                                        status VARCHAR(20) DEFAULT 'PENDING'
+);
+
 -- 6.1 Demandes de match (Coach -> Admin)
 CREATE TABLE match_requests (
                                 id SERIAL PRIMARY KEY,
@@ -225,6 +256,11 @@ CREATE INDEX idx_events_clubid ON events(club_id);
 CREATE INDEX idx_events_date ON events(date_debut);
 CREATE INDEX idx_event_participation_event ON event_participation(event_id);
 CREATE INDEX idx_event_participation_user ON event_participation(user_id);
+CREATE INDEX idx_equipment_types_name ON equipment_types(name);
+CREATE INDEX idx_equipments_type_id ON equipments(type_id);
+CREATE INDEX idx_equipments_club_id ON equipments(club_id);
+CREATE INDEX idx_equipment_reservations_equipment ON equipment_reservations(equipment_id);
+CREATE INDEX idx_equipment_reservations_user ON equipment_reservations(user_id);
 
 
 ---------------------------------------------------------
@@ -355,6 +391,24 @@ INSERT INTO event_participation (event_id, user_id, status) VALUES
                                                                 (1, 'user2', 'MAYBE'),
                                                                 (2, 'user4', 'GOING'),
                                                                 (3, 'user9', 'NOT_GOING');
+
+-- 4.7 Types d'equipement
+INSERT INTO equipment_types (name, description) VALUES
+                                                    ('Ballon', 'Ballons officiels'),
+                                                    ('Maillot', 'Tenues de match'),
+                                                    ('Cones', 'Plots d entrainement');
+
+-- 4.8 Equipements
+INSERT INTO equipments (name, type, condition, quantity, type_id, club_id) VALUES
+                                                                              ('Ballon #1', 'Ballon', 'Neuf', 10, 1, 1),
+                                                                              ('Ballon #2', 'Ballon', 'Bon', 8, 1, 1),
+                                                                              ('Maillot domicile', 'Maillot', 'Bon', 25, 2, 1),
+                                                                              ('Cones lot A', 'Cones', 'Use', 50, 3, 2);
+
+-- 4.9 Reservations d'equipements
+INSERT INTO equipment_reservations (equipment_id, user_id, start_date, end_date, status) VALUES
+                                                                                            (1, 'user1', '2024-10-05', '2024-10-06', 'APPROVED'),
+                                                                                            (2, 'user2', '2024-10-10', '2024-10-12', 'PENDING');
 
 -- 5. MATCHS DE TEST (Pour ton nouveau MatchController)
 INSERT INTO matchs (type_sport_id, home_team_id, away_team_id, datetime, location, referee, status) VALUES

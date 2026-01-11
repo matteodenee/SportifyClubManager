@@ -76,6 +76,36 @@ public class PostgresFactory extends AbstractFactory {
         return new PostgresEventDAO(connection);
     }
 
+    @Override
+    public ConversationDAO createConversationDAO() {
+        Connection connection = PostgresUserDAO.getConnection();
+        return new PostgresConversationDAO(connection);
+    }
+
+    @Override
+    public MessageDAO createMessageDAO() {
+        Connection connection = PostgresUserDAO.getConnection();
+        return new PostgresMessageDAO(connection);
+    }
+
+    @Override
+    public EquipmentTypeDAO createEquipmentTypeDAO() {
+        Connection connection = PostgresUserDAO.getConnection();
+        return new PostgresEquipmentTypeDAO(connection);
+    }
+
+    @Override
+    public EquipmentDAO createEquipmentDAO() {
+        Connection connection = PostgresUserDAO.getConnection();
+        return new PostgresEquipmentDAO(connection);
+    }
+
+    @Override
+    public ReservationDAO createReservationDAO() {
+        Connection connection = PostgresUserDAO.getConnection();
+        return new PostgresReservationDAO(connection);
+    }
+
 
 
 

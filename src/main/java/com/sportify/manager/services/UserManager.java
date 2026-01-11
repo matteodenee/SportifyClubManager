@@ -19,6 +19,10 @@ public class UserManager {
         return um;
     }
 
+    public User getCurrentUser() {
+        return currentUser;
+    }
+
     // --- LOGIQUE DE CONNEXION ---
     public User login(String id, String pwd){
         AbstractFactory f = AbstractFactory.getFactory();

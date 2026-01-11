@@ -41,5 +41,10 @@ public abstract class AbstractFactory {
     public abstract CompositionDAO createCompositionDAO();
     public abstract MatchRequestDAO createMatchRequestDAO();
     public abstract EventDAO createEventDAO();
+    public abstract ConversationDAO createConversationDAO();
+    public abstract MessageDAO createMessageDAO();
+    public abstract EquipmentTypeDAO createEquipmentTypeDAO();
+    public abstract EquipmentDAO createEquipmentDAO();
+    public abstract ReservationDAO createReservationDAO();
 
 }
