@@ -2,14 +2,21 @@ package com.sportify.manager.frame;
 
 import com.sportify.manager.controllers.ClubController;
 import com.sportify.manager.controllers.LicenceController;
+import com.sportify.manager.controllers.EventController;
+import com.sportify.manager.controllers.EquipmentController;
 import com.sportify.manager.facade.LicenceFacade;
 import com.sportify.manager.facade.TypeSportFacade;
+import com.sportify.manager.dao.PostgresUserDAO;
 import com.sportify.manager.services.Club;
+import com.sportify.manager.services.Equipment;
+import com.sportify.manager.services.Event;
 import com.sportify.manager.services.User;
 import com.sportify.manager.services.TypeSport;
+import com.sportify.manager.services.Reservation;
 import com.sportify.manager.services.licence.Licence;
 import com.sportify.manager.services.licence.TypeLicence;
 import com.sportify.manager.services.licence.StatutLicence;
+import com.sportify.manager.frame.CommunicationFrame;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
@@ -20,18 +27,40 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class MemberDashboardFrame extends Application {
     private ClubController clubController;
     private LicenceController licenceController;
+    private final EventController eventController = EventController.getInstance();
+    private final EquipmentController equipmentController = new EquipmentController();
     private User currentUser;
+    private int memberClubId = -1;
 
     private TableView<Club> clubTable;
     private VBox clubView;
     private VBox licenceView;
+    private VBox eventView;
+    private VBox equipmentView;
+    private VBox communicationView;
     private StackPane contentArea;
     private VBox licenceStatusBox;
+
+    private ListView<Event> eventList;
+    private DatePicker eventStartDate;
+    private DatePicker eventEndDate;
+    private ChoiceBox<String> eventRsvpChoice;
+    private Label eventMessageLabel;
+
+    private ListView<Equipment> equipmentList;
+    private ListView<Reservation> reservationList;
+    private DatePicker equipmentStartDate;
+    private DatePicker equipmentEndDate;
+    private Label equipmentMessageLabel;
 
     // Simulation pour le flux A1 (Documents manquants)
     private boolean documentAttached = false;
@@ -40,6 +69,7 @@ public class MemberDashboardFrame extends Application {
         this.currentUser = user;
         this.licenceController = new LicenceController();
         this.licenceController.setCurrentUser(user);
+        this.memberClubId = PostgresUserDAO.getInstance().getClubIdByMember(user.getId());
     }
 
     public void setClubController(ClubController controller) {
@@ -63,28 +93,72 @@ public class MemberDashboardFrame extends Application {
 
         Button btnClubs = createMenuButton("🔍 Parcourir Clubs", true);
         Button btnLicence = createMenuButton("📜 Ma Licence", false);
+        Button btnEvents = createMenuButton("📅 Events", false);
+        Button btnEquipment = createMenuButton("🧰 Equipement", false);
+        Button btnCommunication = createMenuButton("💬 Communication", false);
         Button btnLogout = createMenuButton("🚪 Déconnexion", false);
 
-        sidebar.getChildren().addAll(menuLabel, new Separator(), btnClubs, btnLicence, btnLogout);
+        sidebar.getChildren().addAll(menuLabel, new Separator(), btnClubs, btnLicence, btnEvents, btnEquipment, btnCommunication, btnLogout);
 
         createClubView();
         createLicenceView();
+        createEventView();
+        createEquipmentView();
+        createCommunicationView();
 
-        contentArea = new StackPane(clubView, licenceView);
+        contentArea = new StackPane(clubView, licenceView, eventView, equipmentView, communicationView);
         licenceView.setVisible(false);
+        eventView.setVisible(false);
+        equipmentView.setVisible(false);
+        communicationView.setVisible(false);
 
         btnClubs.setOnAction(e -> {
-            switchView(btnClubs, btnLicence);
+            switchView(btnClubs, btnLicence, btnEvents, btnEquipment, btnCommunication);
             clubView.setVisible(true);
             licenceView.setVisible(false);
+            eventView.setVisible(false);
+            equipmentView.setVisible(false);
+            communicationView.setVisible(false);
             refreshList();
         });
 
         btnLicence.setOnAction(e -> {
-            switchView(btnLicence, btnClubs);
+            switchView(btnLicence, btnClubs, btnEvents, btnEquipment, btnCommunication);
             clubView.setVisible(false);
             licenceView.setVisible(true);
+            eventView.setVisible(false);
+            equipmentView.setVisible(false);
+            communicationView.setVisible(false);
             refreshLicenceInfo();
+        });
+
+        btnEvents.setOnAction(e -> {
+            switchView(btnEvents, btnClubs, btnLicence, btnEquipment, btnCommunication);
+            clubView.setVisible(false);
+            licenceView.setVisible(false);
+            eventView.setVisible(true);
+            equipmentView.setVisible(false);
+            communicationView.setVisible(false);
+            refreshEventList();
+        });
+
+        btnEquipment.setOnAction(e -> {
+            switchView(btnEquipment, btnClubs, btnLicence, btnEvents, btnCommunication);
+            clubView.setVisible(false);
+            licenceView.setVisible(false);
+            eventView.setVisible(false);
+            equipmentView.setVisible(true);
+            communicationView.setVisible(false);
+            refreshEquipmentList();
+        });
+
+        btnCommunication.setOnAction(e -> {
+            switchView(btnCommunication, btnClubs, btnLicence, btnEvents, btnEquipment);
+            clubView.setVisible(false);
+            licenceView.setVisible(false);
+            eventView.setVisible(false);
+            equipmentView.setVisible(false);
+            communicationView.setVisible(true);
         });
 
         btnLogout.setOnAction(e -> handleLogout(primaryStage));
@@ -202,6 +276,180 @@ public class MemberDashboardFrame extends Application {
         licenceView.getChildren().addAll(title, new Label("Historique de vos licences (Critère 7.4) :"), scrollPane, new Separator(), formBox);
     }
 
+    private void createEventView() {
+        eventView = new VBox(15);
+        eventView.setPadding(new Insets(30));
+
+        Label title = new Label("Événements");
+        title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
+
+        eventStartDate = new DatePicker();
+        eventEndDate = new DatePicker();
+        Button loadBtn = new Button("Charger");
+        loadBtn.setOnAction(e -> refreshEventList());
+
+        eventList = new ListView<>();
+        eventList.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Event item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getNom() + " | " + formatDateTime(item.getDateDebut()));
+                }
+            }
+        });
+
+        eventRsvpChoice = new ChoiceBox<>(FXCollections.observableArrayList("GOING", "MAYBE", "NOT_GOING"));
+        eventRsvpChoice.getSelectionModel().selectFirst();
+        Button rsvpBtn = new Button("RSVP");
+        rsvpBtn.setOnAction(e -> handleRsvp());
+
+        eventMessageLabel = new Label();
+        eventMessageLabel.setStyle("-fx-text-fill: #7f8c8d;");
+
+        HBox filters = new HBox(10, eventStartDate, eventEndDate, loadBtn);
+        HBox rsvpBox = new HBox(10, eventRsvpChoice, rsvpBtn);
+
+        eventView.getChildren().addAll(title, filters, eventList, rsvpBox, eventMessageLabel);
+    }
+
+    private void createEquipmentView() {
+        equipmentView = new VBox(15);
+        equipmentView.setPadding(new Insets(30));
+
+        Label title = new Label("Équipements");
+        title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
+
+        equipmentList = new ListView<>();
+        equipmentList.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Equipment item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName() + " | " + item.getType() + " | qty=" + item.getQuantity());
+                }
+            }
+        });
+
+        equipmentStartDate = new DatePicker();
+        equipmentEndDate = new DatePicker();
+        Button reserveBtn = new Button("Réserver");
+        reserveBtn.setOnAction(e -> handleReserveEquipment());
+
+        equipmentMessageLabel = new Label();
+        equipmentMessageLabel.setStyle("-fx-text-fill: #7f8c8d;");
+
+        HBox reservationBox = new HBox(10, equipmentStartDate, equipmentEndDate, reserveBtn);
+
+        reservationList = new ListView<>();
+        reservationList.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Reservation item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText("Res#" + item.getId() + " | eq=" + item.getEquipmentId()
+                            + " | " + item.getStartDate()
+                            + " -> " + item.getEndDate()
+                            + " | " + item.getStatus());
+                }
+            }
+        });
+
+        equipmentView.getChildren().addAll(
+                title,
+                equipmentList,
+                reservationBox,
+                equipmentMessageLabel,
+                new Separator(),
+                new Label("Mes réservations"),
+                reservationList
+        );
+    }
+
+    private void createCommunicationView() {
+        communicationView = new VBox(12);
+        communicationView.setPadding(new Insets(30));
+        Label title = new Label("Communication");
+        title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
+        Button openChat = new Button("Ouvrir le chat");
+        openChat.setOnAction(e -> new CommunicationFrame(new Stage()));
+        communicationView.getChildren().addAll(title, openChat);
+    }
+
+    private void refreshEventList() {
+        LocalDate start = eventStartDate.getValue();
+        LocalDate end = eventEndDate.getValue();
+        if (start == null || end == null) {
+            eventMessageLabel.setText("Sélectionnez une période.");
+            return;
+        }
+        List<Event> events = memberClubId > 0
+                ? eventController.getEventsByClub(memberClubId)
+                : eventController.getEventsByDateRange(start.atStartOfDay(), end.atTime(LocalTime.MAX));
+        if (events != null) {
+            events = events.stream().filter(e -> {
+                if (e == null || e.getDateDebut() == null) return false;
+                if (start != null && e.getDateDebut().isBefore(start.atStartOfDay())) return false;
+                if (end != null && e.getDateDebut().isAfter(end.atTime(LocalTime.MAX))) return false;
+                return true;
+            }).toList();
+        }
+        eventList.setItems(FXCollections.observableArrayList(events == null ? List.of() : events));
+        eventMessageLabel.setText("");
+    }
+
+    private void handleRsvp() {
+        Event selected = eventList.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            eventMessageLabel.setText("Sélectionnez un événement.");
+            return;
+        }
+        boolean ok = eventController.rsvpToEvent(selected.getId(), currentUser.getId(), eventRsvpChoice.getValue());
+        eventMessageLabel.setText(ok ? "RSVP enregistré." : eventController.getLastError());
+    }
+
+    private void refreshEquipmentList() {
+        List<Equipment> list = equipmentController.handleViewAllEquipment();
+        if (list != null && memberClubId > 0) {
+            list = list.stream().filter(e -> e != null && e.getClubId() == memberClubId).toList();
+        }
+        equipmentList.setItems(FXCollections.observableArrayList(list == null ? List.of() : list));
+        refreshMyReservations();
+    }
+
+    private void handleReserveEquipment() {
+        Equipment selected = equipmentList.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            equipmentMessageLabel.setText("Sélectionnez un équipement.");
+            return;
+        }
+        boolean ok = equipmentController.handleReserveEquipment(
+                selected.getId(),
+                currentUser.getId(),
+                equipmentStartDate.getValue(),
+                equipmentEndDate.getValue()
+        );
+        equipmentMessageLabel.setText(ok ? "Réservation envoyée." : equipmentController.getLastError());
+        if (ok) {
+            refreshMyReservations();
+        }
+    }
+
+    private void refreshMyReservations() {
+        List<Reservation> list = equipmentController.handleReservationsByUser(currentUser.getId());
+        reservationList.setItems(FXCollections.observableArrayList(list == null ? List.of() : list));
+    }
+
+    private String formatDateTime(LocalDateTime dateTime) {
+        return dateTime == null ? "" : dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+    }
+
     private void refreshLicenceInfo() {
         licenceStatusBox.getChildren().clear();
         List<Licence> licences = LicenceFacade.getInstance().getLicencesByMembre(currentUser.getId());
@@ -248,9 +496,16 @@ public class MemberDashboardFrame extends Application {
         clubTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
     }
 
-    private void switchView(Button active, Button inactive) {
+    private void switchView(Button active, Button... inactive) {
         active.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-alignment: CENTER_LEFT; -fx-cursor: hand;");
-        inactive.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT; -fx-cursor: hand;");
+        if (inactive == null) {
+            return;
+        }
+        for (Button btn : inactive) {
+            if (btn != null) {
+                btn.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT; -fx-cursor: hand;");
+            }
+        }
     }
 
     private void refreshList() {

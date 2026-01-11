@@ -91,24 +91,6 @@ CREATE TABLE matchs (
                         away_score INT DEFAULT 0
 );
 
--- 6.1 Entrainements
-CREATE TABLE entrainements (
-                               id SERIAL PRIMARY KEY,
-                               date DATE NOT NULL,
-                               heure TIME NOT NULL,
-                               lieu VARCHAR(255),
-                               activite VARCHAR(255),
-                               clubid INT REFERENCES clubs(clubid) ON DELETE CASCADE
-);
-
--- 6.2 Participation aux entrainements
-CREATE TABLE entrainement_participation (
-                                            entrainement_id INT REFERENCES entrainements(id) ON DELETE CASCADE,
-                                            user_id VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
-                                            status VARCHAR(20) DEFAULT 'PENDING',
-                                            PRIMARY KEY (entrainement_id, user_id)
-);
-
 -- 6.3 Evenements
 CREATE TABLE events (
                         id SERIAL PRIMARY KEY,
@@ -202,6 +184,25 @@ CREATE TABLE team_member (
                              PRIMARY KEY (id_team, id_user)
 );
 
+-- 7.3 Entrainements
+CREATE TABLE entrainements (
+                               id SERIAL PRIMARY KEY,
+                               date DATE NOT NULL,
+                               heure TIME NOT NULL,
+                               lieu VARCHAR(255),
+                               activite VARCHAR(255),
+                               clubid INT REFERENCES clubs(clubid) ON DELETE CASCADE,
+                               team_id INT REFERENCES team(id_team) ON DELETE SET NULL
+);
+
+-- 7.4 Participation aux entrainements
+CREATE TABLE entrainement_participation (
+                                            entrainement_id INT REFERENCES entrainements(id) ON DELETE CASCADE,
+                                            user_id VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
+                                            status VARCHAR(20) DEFAULT 'PENDING',
+                                            PRIMARY KEY (entrainement_id, user_id)
+);
+
 ---------------------------------------------------------
 -- GESTION DES MEMBRES ET LICENCES
 ---------------------------------------------------------
@@ -250,6 +251,7 @@ CREATE TABLE small_events (
 
 CREATE INDEX idx_entrainements_clubid ON entrainements(clubid);
 CREATE INDEX idx_entrainements_date ON entrainements(date);
+CREATE INDEX idx_entrainements_team ON entrainements(team_id);
 CREATE INDEX idx_participation_entrainement ON entrainement_participation(entrainement_id);
 CREATE INDEX idx_participation_user ON entrainement_participation(user_id);
 CREATE INDEX idx_events_clubid ON events(club_id);
@@ -345,7 +347,8 @@ INSERT INTO team (nom, categorie, clubid, coach_id, type_sport_id) VALUES
                                                                         ('Rugby Seniors', 'Senior', 2, 'coach_marie', 2),
                                                                         ('Basket Pro', 'Senior', 3, 'coach_tony', 3),
                                                                         ('Handball A', 'Senior', 4, 'coach_sarah', 4),
-                                                                        ('Volley Mixte', 'Senior', 6, 'coach_paul', 6);
+                                                                        ('Volley Mixte', 'Senior', 6, 'coach_paul', 6),
+                                                                        ('Tennis Loisirs', 'Senior', 5, NULL, 5);
 
 -- 4.2 Membres d'equipe
 INSERT INTO team_member (id_team, id_user) VALUES
@@ -365,12 +368,14 @@ INSERT INTO team_member (id_team, id_user) VALUES
                                                (6, 'user12');
 
 -- 4.3 Entrainements
-INSERT INTO entrainements (date, heure, lieu, activite, clubid) VALUES
-                                                                    ('2024-10-02', '18:00', 'Stade Sportify', 'Footing', 1),
-                                                                    ('2024-10-04', '19:30', 'Stade Sportify', 'Tactique', 1),
-                                                                    ('2024-10-03', '17:00', 'Rugby Park', 'Contact', 2),
-                                                                    ('2024-10-06', '18:30', 'Arena Basket', 'Shoot', 3),
-                                                                    ('2024-10-07', '20:00', 'Gymnase Central', 'Defense', 4);
+INSERT INTO entrainements (date, heure, lieu, activite, clubid, team_id) VALUES
+                                                                            ('2024-10-02', '18:00', 'Stade Sportify', 'Footing', 1, 1),
+                                                                            ('2024-10-04', '19:30', 'Stade Sportify', 'Tactique', 1, 1),
+                                                                            ('2024-10-03', '17:00', 'Rugby Park', 'Contact', 2, 3),
+                                                                            ('2024-10-06', '18:30', 'Arena Basket', 'Shoot', 3, 4),
+                                                                            ('2024-10-07', '20:00', 'Gymnase Central', 'Defense', 4, 5),
+                                                                            ('2024-10-08', '09:00', 'Courts Municipaux', 'Service', 5, 7),
+                                                                            ('2024-10-09', '18:30', 'Stade Sportify', 'Jeu réduit', 1, 2);
 
 -- 4.4 Participation entrainements
 INSERT INTO entrainement_participation (entrainement_id, user_id, status) VALUES

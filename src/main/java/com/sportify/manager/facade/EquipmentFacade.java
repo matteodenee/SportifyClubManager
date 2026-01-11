@@ -31,4 +31,16 @@ public class EquipmentFacade {
     public List<Equipment> getAllEquipment() {
         return manager.getAllEquipment();
     }
+
+    public List<Reservation> getReservationsByUser(String userId) {
+        return manager.getReservationsByUser(userId);
+    }
+
+    public List<Reservation> getReservationsByClub(int clubId) {
+        return manager.getReservationsByClub(clubId);
+    }
+
+    public boolean updateReservationStatus(int reservationId, String status) {
+        return manager.updateReservationStatus(reservationId, status);
+    }
 }

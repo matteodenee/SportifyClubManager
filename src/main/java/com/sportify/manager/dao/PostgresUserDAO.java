@@ -167,6 +167,23 @@ public class PostgresUserDAO extends UserDAO {
         }
     }
 
+    public int getClubIdByMember(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return -1;
+        }
+        String sql = "SELECT clubid FROM members WHERE userid = ? LIMIT 1";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("clubid");
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur SQL getClubIdByMember: " + e.getMessage());
+        }
+        return -1;
+    }
+
     public static Connection getConnection() {
         return connection;
     }

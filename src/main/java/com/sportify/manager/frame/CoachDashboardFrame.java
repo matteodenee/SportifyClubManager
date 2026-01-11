@@ -12,16 +12,25 @@ import com.sportify.manager.controllers.MatchController;
 import com.sportify.manager.controllers.MatchRequestController;
 import com.sportify.manager.controllers.TypeSportController;
 import com.sportify.manager.controllers.TrainingController;
+import com.sportify.manager.controllers.EventController;
+import com.sportify.manager.controllers.EquipmentController;
+import com.sportify.manager.controllers.EquipmentTypeController;
 import com.sportify.manager.services.Club;
 import com.sportify.manager.services.Composition;
+import com.sportify.manager.services.Equipment;
+import com.sportify.manager.services.EquipmentType;
+import com.sportify.manager.services.EquipmentTypeActionResult;
+import com.sportify.manager.services.Event;
 import com.sportify.manager.services.Match;
 import com.sportify.manager.services.MatchRequest;
 import com.sportify.manager.services.MatchRequestStatus;
 import com.sportify.manager.services.ParticipationStatus;
+import com.sportify.manager.services.Reservation;
 import com.sportify.manager.services.RoleAssignment;
 import com.sportify.manager.services.Training;
 import com.sportify.manager.services.TypeSport;
 import com.sportify.manager.services.User;
+import com.sportify.manager.frame.CommunicationFrame;
 import com.sportify.manager.dao.PostgresUserDAO;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
@@ -56,6 +65,9 @@ public class CoachDashboardFrame extends Application {
     private CompositionController compositionController;
     private TypeSportController sportController;
     private TrainingController trainingController;
+    private EventController eventController = EventController.getInstance();
+    private EquipmentController equipmentController = new EquipmentController();
+    private EquipmentTypeController equipmentTypeController = new EquipmentTypeController();
 
     private StackPane displayArea;
 
@@ -82,6 +94,10 @@ public class CoachDashboardFrame extends Application {
 
     // Training View
     private VBox trainingView;
+    private VBox eventView;
+    private VBox communicationView;
+    private VBox equipmentView;
+    private VBox typeEquipmentView;
     private DatePicker trainingDatePicker;
     private TextField trainingTimeField;
     private TextField trainingLocationField;
@@ -93,6 +109,35 @@ public class CoachDashboardFrame extends Application {
     private ChoiceBox<ParticipationStatus> statusChoiceBox;
     private ListView<String> participationList;
     private Label trainingMessageLabel;
+
+    // Event View
+    private ListView<Event> eventList;
+    private TextField eventNameField;
+    private TextArea eventDescriptionField;
+    private DatePicker eventDatePicker;
+    private TextField eventTimeField;
+    private TextField eventDurationField;
+    private TextField eventLocationField;
+    private TextField eventTypeField;
+    private ChoiceBox<String> eventRsvpChoice;
+    private Label eventMessageLabel;
+
+    // Equipment View
+    private ListView<Equipment> equipmentList;
+    private ListView<Reservation> equipmentReservationList;
+    private TextField equipmentNameField;
+    private TextField equipmentTypeField;
+    private TextField equipmentConditionField;
+    private TextField equipmentQuantityField;
+    private DatePicker equipmentStartDate;
+    private DatePicker equipmentEndDate;
+    private Label equipmentMessageLabel;
+
+    // Type Equipment View
+    private ListView<EquipmentType> equipmentTypeList;
+    private TextField equipmentTypeNameField;
+    private TextArea equipmentTypeDescField;
+    private Label equipmentTypeMessageLabel;
 
     public CoachDashboardFrame(User user) {
         this.currentCoach = user;
@@ -132,7 +177,6 @@ public class CoachDashboardFrame extends Application {
         Button btnEvents = createMenuButton("📅 Event Management");
         Button btnCommunication = createMenuButton("💬 Communication Management");
         Button btnEquipment = createMenuButton("🧰 Equipement Management");
-        Button btnTypeEquipment = createMenuButton("🏷️ Type Equipement Management");
         Button btnLogout = createMenuButton("🚪 Déconnexion");
 
         sidebar.getChildren().addAll(
@@ -145,7 +189,6 @@ public class CoachDashboardFrame extends Application {
                 btnEvents,
                 btnCommunication,
                 btnEquipment,
-                btnTypeEquipment,
                 btnLogout
         );
 
@@ -168,6 +211,10 @@ public class CoachDashboardFrame extends Application {
 
         createMatchView();
         createTrainingView();
+        createEventView();
+        createCommunicationView();
+        createEquipmentView();
+        createTypeEquipmentView();
 
         // --- ACTIONS ---
         btnStats.setOnAction(e -> {
@@ -188,10 +235,15 @@ public class CoachDashboardFrame extends Application {
             setDisplay(trainingView);
             refreshTrainingList();
         });
-        btnEvents.setOnAction(e -> setDisplay(createCoachPlaceholder("Event Management", "Ce module sera ajouté prochainement.")));
-        btnCommunication.setOnAction(e -> setDisplay(createCoachPlaceholder("Communication Management", "Ce module sera ajouté prochainement.")));
-        btnEquipment.setOnAction(e -> setDisplay(createCoachPlaceholder("Equipement Management", "Ce module sera ajouté prochainement.")));
-        btnTypeEquipment.setOnAction(e -> setDisplay(createCoachPlaceholder("Type Equipement Management", "Ce module sera ajouté prochainement.")));
+        btnEvents.setOnAction(e -> {
+            setDisplay(eventView);
+            refreshEventList();
+        });
+        btnCommunication.setOnAction(e -> setDisplay(communicationView));
+        btnEquipment.setOnAction(e -> {
+            setDisplay(equipmentView);
+            refreshEquipmentList();
+        });
         btnMatch.setOnAction(e -> {
             if (coachClubId == -1 || coachClub == null) {
                 showError("Erreur", "Aucun club n'est associé à votre compte coach.");
@@ -907,6 +959,366 @@ public class CoachDashboardFrame extends Application {
         matchTimeField.clear();
         matchLocationField.clear();
         matchRefereeField.clear();
+    }
+
+    // ==========================================
+    // EVENT MANAGEMENT
+    // ==========================================
+    private void createEventView() {
+        eventView = new VBox(15);
+        eventView.setPadding(new Insets(20));
+
+        Label title = new Label("Event Management");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+
+        eventNameField = new TextField();
+        eventNameField.setPromptText("Nom");
+        eventDescriptionField = new TextArea();
+        eventDescriptionField.setPromptText("Description");
+        eventDescriptionField.setPrefRowCount(3);
+        eventDatePicker = new DatePicker();
+        eventTimeField = new TextField();
+        eventTimeField.setPromptText("Heure (HH:mm)");
+        eventDurationField = new TextField();
+        eventDurationField.setPromptText("Durée (minutes)");
+        eventLocationField = new TextField();
+        eventLocationField.setPromptText("Lieu");
+        eventTypeField = new TextField();
+        eventTypeField.setPromptText("Type");
+
+        Button createBtn = new Button("Créer");
+        createBtn.setOnAction(e -> handleCreateEvent());
+
+        eventMessageLabel = new Label();
+        eventMessageLabel.setStyle("-fx-text-fill: #7f8c8d;");
+
+        eventList = new ListView<>();
+        eventList.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Event item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getNom() + " | " + formatDateTime(item.getDateDebut()));
+                }
+            }
+        });
+
+        eventRsvpChoice = new ChoiceBox<>(FXCollections.observableArrayList("GOING", "MAYBE", "NOT_GOING"));
+        eventRsvpChoice.getSelectionModel().selectFirst();
+        Button rsvpBtn = new Button("RSVP");
+        rsvpBtn.setOnAction(e -> handleRsvpToEvent());
+
+        HBox rsvpBox = new HBox(10, eventRsvpChoice, rsvpBtn);
+
+        eventView.getChildren().addAll(
+                title,
+                new Label("Nouvel événement"),
+                eventNameField,
+                eventDescriptionField,
+                new HBox(10, eventDatePicker, eventTimeField),
+                new HBox(10, eventDurationField, eventLocationField),
+                eventTypeField,
+                createBtn,
+                eventMessageLabel,
+                new Separator(),
+                new Label("Événements du club"),
+                eventList,
+                rsvpBox
+        );
+    }
+
+    private void handleCreateEvent() {
+        if (coachClubId <= 0) {
+            showError("Erreur", "Aucun club associé.");
+            return;
+        }
+        LocalDate date = eventDatePicker.getValue();
+        LocalTime time = parseTime(eventTimeField.getText());
+        if (date == null || time == null) {
+            eventMessageLabel.setText("Date/heure invalides.");
+            return;
+        }
+        LocalDateTime start = LocalDateTime.of(date, time);
+        int duration;
+        try {
+            duration = Integer.parseInt(eventDurationField.getText().trim());
+        } catch (Exception e) {
+            eventMessageLabel.setText("Durée invalide.");
+            return;
+        }
+        boolean ok = eventController.createEvent(
+                eventNameField.getText(),
+                eventDescriptionField.getText(),
+                start,
+                duration,
+                eventLocationField.getText(),
+                eventTypeField.getText(),
+                coachClubId,
+                currentCoach.getId()
+        );
+        eventMessageLabel.setText(ok ? "Événement créé." : eventController.getLastError());
+        if (ok) {
+            refreshEventList();
+        }
+    }
+
+    private void handleRsvpToEvent() {
+        Event selected = eventList.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            eventMessageLabel.setText("Sélectionnez un événement.");
+            return;
+        }
+        String status = eventRsvpChoice.getValue();
+        boolean ok = eventController.rsvpToEvent(selected.getId(), currentCoach.getId(), status);
+        eventMessageLabel.setText(ok ? "RSVP enregistré." : eventController.getLastError());
+    }
+
+    private void refreshEventList() {
+        List<Event> events = eventController.getEventsByClub(coachClubId);
+        eventList.setItems(FXCollections.observableArrayList(events == null ? List.of() : events));
+    }
+
+    // ==========================================
+    // COMMUNICATION
+    // ==========================================
+    private void createCommunicationView() {
+        communicationView = new VBox(12);
+        communicationView.setPadding(new Insets(20));
+
+        Label title = new Label("Communication Management");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+
+        Button openChat = new Button("Ouvrir le chat");
+        openChat.setOnAction(e -> new CommunicationFrame(new Stage()));
+
+        communicationView.getChildren().addAll(title, openChat);
+    }
+
+    // ==========================================
+    // EQUIPMENT MANAGEMENT
+    // ==========================================
+    private void createEquipmentView() {
+        equipmentView = new VBox(15);
+        equipmentView.setPadding(new Insets(20));
+
+        Label title = new Label("Equipement Management");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+
+        equipmentNameField = new TextField();
+        equipmentNameField.setPromptText("Nom");
+        equipmentTypeField = new TextField();
+        equipmentTypeField.setPromptText("Type");
+        equipmentConditionField = new TextField();
+        equipmentConditionField.setPromptText("État");
+        equipmentQuantityField = new TextField();
+        equipmentQuantityField.setPromptText("Quantité");
+
+        Button addBtn = new Button("Ajouter");
+        addBtn.setOnAction(e -> handleAddEquipment());
+
+        equipmentMessageLabel = new Label();
+        equipmentMessageLabel.setStyle("-fx-text-fill: #7f8c8d;");
+
+        equipmentList = new ListView<>();
+        equipmentList.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Equipment item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName() + " | " + item.getType() + " | qty=" + item.getQuantity());
+                }
+            }
+        });
+
+        equipmentStartDate = new DatePicker();
+        equipmentEndDate = new DatePicker();
+        Button reserveBtn = new Button("Réserver");
+        reserveBtn.setOnAction(e -> handleReserveEquipment());
+
+        equipmentReservationList = new ListView<>();
+        equipmentReservationList.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Reservation item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText("Res#" + item.getId() + " | eq=" + item.getEquipmentId()
+                            + " | " + item.getUserId() + " | " + item.getStartDate()
+                            + " -> " + item.getEndDate() + " | " + item.getStatus());
+                }
+            }
+        });
+        Button approveBtn = new Button("Approuver");
+        approveBtn.setOnAction(e -> handleReservationStatusUpdate("APPROVED"));
+        Button rejectBtn = new Button("Refuser");
+        rejectBtn.setOnAction(e -> handleReservationStatusUpdate("REJECTED"));
+
+        equipmentView.getChildren().addAll(
+                title,
+                new Label("Ajouter un équipement"),
+                equipmentNameField,
+                new HBox(10, equipmentTypeField, equipmentConditionField),
+                equipmentQuantityField,
+                addBtn,
+                equipmentMessageLabel,
+                new Separator(),
+                new Label("Liste des équipements"),
+                equipmentList,
+                new HBox(10, equipmentStartDate, equipmentEndDate, reserveBtn),
+                new Separator(),
+                new Label("Réservations du club"),
+                equipmentReservationList,
+                new HBox(10, approveBtn, rejectBtn)
+        );
+    }
+
+    private void handleAddEquipment() {
+        int qty;
+        try {
+            qty = Integer.parseInt(equipmentQuantityField.getText().trim());
+        } catch (Exception e) {
+            equipmentMessageLabel.setText("Quantité invalide.");
+            return;
+        }
+        boolean ok = equipmentController.handleCreateEquipment(
+                equipmentNameField.getText(),
+                equipmentTypeField.getText(),
+                equipmentConditionField.getText(),
+                qty,
+                coachClubId
+        );
+        equipmentMessageLabel.setText(ok ? "Équipement ajouté." : equipmentController.getLastError());
+        if (ok) {
+            refreshEquipmentList();
+        }
+    }
+
+    private void handleReserveEquipment() {
+        Equipment selected = equipmentList.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            equipmentMessageLabel.setText("Sélectionnez un équipement.");
+            return;
+        }
+        LocalDate start = equipmentStartDate.getValue();
+        LocalDate end = equipmentEndDate.getValue();
+        boolean ok = equipmentController.handleReserveEquipment(selected.getId(), currentCoach.getId(), start, end);
+        equipmentMessageLabel.setText(ok ? "Réservation envoyée." : equipmentController.getLastError());
+    }
+
+    private void refreshEquipmentList() {
+        List<Equipment> list = equipmentController.handleViewAllEquipment();
+        if (list != null && coachClubId > 0) {
+            list = list.stream().filter(e -> e != null && e.getClubId() == coachClubId).toList();
+        }
+        equipmentList.setItems(FXCollections.observableArrayList(list == null ? List.of() : list));
+        refreshEquipmentReservations();
+    }
+
+    private void refreshEquipmentReservations() {
+        if (coachClubId <= 0) {
+            equipmentReservationList.setItems(FXCollections.observableArrayList());
+            return;
+        }
+        List<Reservation> reservations = equipmentController.handleReservationsByClub(coachClubId);
+        equipmentReservationList.setItems(FXCollections.observableArrayList(reservations == null ? List.of() : reservations));
+    }
+
+    private void handleReservationStatusUpdate(String status) {
+        Reservation selected = equipmentReservationList.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            equipmentMessageLabel.setText("Sélectionnez une réservation.");
+            return;
+        }
+        boolean ok = equipmentController.handleUpdateReservationStatus(selected.getId(), status);
+        equipmentMessageLabel.setText(ok ? "Statut mis à jour." : equipmentController.getLastError());
+        if (ok) {
+            refreshEquipmentReservations();
+        }
+    }
+
+    // ==========================================
+    // TYPE EQUIPMENT MANAGEMENT
+    // ==========================================
+    private void createTypeEquipmentView() {
+        typeEquipmentView = new VBox(15);
+        typeEquipmentView.setPadding(new Insets(20));
+
+        Label title = new Label("Type Equipement Management");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+
+        equipmentTypeNameField = new TextField();
+        equipmentTypeNameField.setPromptText("Nom");
+        equipmentTypeDescField = new TextArea();
+        equipmentTypeDescField.setPromptText("Description");
+        equipmentTypeDescField.setPrefRowCount(3);
+
+        Button createBtn = new Button("Créer");
+        createBtn.setOnAction(e -> handleCreateEquipmentType());
+
+        Button deleteBtn = new Button("Supprimer");
+        deleteBtn.setOnAction(e -> handleDeleteEquipmentType());
+
+        equipmentTypeMessageLabel = new Label();
+        equipmentTypeMessageLabel.setStyle("-fx-text-fill: #7f8c8d;");
+
+        equipmentTypeList = new ListView<>();
+        equipmentTypeList.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(EquipmentType item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName());
+                }
+            }
+        });
+
+        typeEquipmentView.getChildren().addAll(
+                title,
+                new Label("Nouveau type"),
+                equipmentTypeNameField,
+                equipmentTypeDescField,
+                new HBox(10, createBtn, deleteBtn),
+                equipmentTypeMessageLabel,
+                new Separator(),
+                new Label("Types existants"),
+                equipmentTypeList
+        );
+    }
+
+    private void handleCreateEquipmentType() {
+        EquipmentTypeActionResult result = equipmentTypeController.handleCreate(
+                equipmentTypeNameField.getText(),
+                equipmentTypeDescField.getText()
+        );
+        equipmentTypeMessageLabel.setText(result.getMessage());
+        if (result.isSuccess()) {
+            refreshEquipmentTypeList();
+        }
+    }
+
+    private void handleDeleteEquipmentType() {
+        EquipmentType selected = equipmentTypeList.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            equipmentTypeMessageLabel.setText("Sélectionnez un type.");
+            return;
+        }
+        EquipmentTypeActionResult result = equipmentTypeController.handleDelete(selected.getId());
+        equipmentTypeMessageLabel.setText(result.getMessage());
+        if (result.isSuccess()) {
+            refreshEquipmentTypeList();
+        }
+    }
+
+    private void refreshEquipmentTypeList() {
+        List<EquipmentType> list = equipmentTypeController.handleListAll();
+        equipmentTypeList.setItems(FXCollections.observableArrayList(list == null ? List.of() : list));
     }
 
     private void setDisplay(javafx.scene.Node content) {

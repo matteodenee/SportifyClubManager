@@ -26,13 +26,14 @@ public class PostgresTrainingDAO implements TrainingDAO {
 
     @Override
     public boolean create(Training entrainement) {
-        String sql = "INSERT INTO entrainements (date, heure, lieu, activite, clubid) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO entrainements (date, heure, lieu, activite, clubid, team_id) VALUES (?, ?, ?, ?, ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setDate(1, Date.valueOf(entrainement.getDate()));
             stmt.setTime(2, Time.valueOf(entrainement.getHeure()));
             stmt.setString(3, entrainement.getLieu());
             stmt.setString(4, entrainement.getActivite());
             stmt.setInt(5, entrainement.getClubId());
+            stmt.setObject(6, entrainement.getTeamId() > 0 ? entrainement.getTeamId() : null);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             System.err.println("Erreur SQL lors de la création d'un entrainement: " + e.getMessage());
@@ -44,7 +45,7 @@ public class PostgresTrainingDAO implements TrainingDAO {
     public List<Training> getUpcomingByClub(int clubId, LocalDate fromDate) {
         List<Training> results = new ArrayList<>();
         LocalDate start = (fromDate == null) ? LocalDate.now() : fromDate;
-        String sql = "SELECT id, date, heure, lieu, activite, clubid " +
+        String sql = "SELECT id, date, heure, lieu, activite, clubid, team_id " +
                 "FROM entrainements WHERE clubid = ? AND date >= ? " +
                 "ORDER BY date ASC, heure ASC";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -62,8 +63,29 @@ public class PostgresTrainingDAO implements TrainingDAO {
     }
 
     @Override
+    public List<Training> getUpcomingByTeam(int teamId, LocalDate fromDate) {
+        List<Training> results = new ArrayList<>();
+        LocalDate start = (fromDate == null) ? LocalDate.now() : fromDate;
+        String sql = "SELECT id, date, heure, lieu, activite, clubid, team_id " +
+                "FROM entrainements WHERE team_id = ? AND date >= ? " +
+                "ORDER BY date ASC, heure ASC";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, teamId);
+            stmt.setDate(2, Date.valueOf(start));
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    results.add(mapRow(rs));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur SQL lors du listing des entrainements par equipe: " + e.getMessage());
+        }
+        return results;
+    }
+
+    @Override
     public Optional<Training> getById(int id) {
-        String sql = "SELECT id, date, heure, lieu, activite, clubid FROM entrainements WHERE id = ?";
+        String sql = "SELECT id, date, heure, lieu, activite, clubid, team_id FROM entrainements WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -129,7 +151,8 @@ public class PostgresTrainingDAO implements TrainingDAO {
                 rs.getTime("heure").toLocalTime(),
                 rs.getString("lieu"),
                 rs.getString("activite"),
-                rs.getInt("clubid")
+                rs.getInt("clubid"),
+                rs.getInt("team_id")
         );
     }
 

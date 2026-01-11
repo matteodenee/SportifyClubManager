@@ -31,6 +31,10 @@ public class TrainingFacade {
         return TrainingManager.getTrainingManager().listUpcomingTrainings(clubId, fromDate);
     }
 
+    public List<Training> listUpcomingByTeam(int teamId, LocalDate fromDate) {
+        return TrainingManager.getTrainingManager().listUpcomingTrainingsByTeam(teamId, fromDate);
+    }
+
     public boolean markParticipation(int entrainementId, String userId, ParticipationStatus status) {
         return TrainingManager.getTrainingManager().markParticipation(entrainementId, userId, status);
     }

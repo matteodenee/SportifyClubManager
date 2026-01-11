@@ -1,11 +1,14 @@
 package com.sportify.manager.frame;
 
 import com.sportify.manager.controllers.ClubController;
+import com.sportify.manager.controllers.EquipmentTypeController;
 import com.sportify.manager.controllers.LicenceController;
 import com.sportify.manager.controllers.MatchController;
 import com.sportify.manager.controllers.MatchRequestController;
 import com.sportify.manager.controllers.TypeSportController;
 import com.sportify.manager.services.Club;
+import com.sportify.manager.services.EquipmentType;
+import com.sportify.manager.services.EquipmentTypeActionResult;
 import com.sportify.manager.services.Match;
 import com.sportify.manager.services.MatchStatus;
 import com.sportify.manager.services.MatchRequest;
@@ -33,13 +36,14 @@ public class AdminDashboardFrame extends Application {
     private ClubController clubController;
     private TypeSportController sportController = new TypeSportController();
     private LicenceController licenceController = new LicenceController();
+    private final EquipmentTypeController equipmentTypeController = new EquipmentTypeController();
     private MatchController matchController = MatchController.getInstance();
     private MatchRequestController matchRequestController = MatchRequestController.getInstance();
 
     // Navigation & Layout
     private StackPane contentArea;
-    private VBox clubView, sportView, licenceAdminView, matchView;
-    private Button btnClubs, btnSports, btnLicences, btnMatchs;
+    private VBox clubView, sportView, licenceAdminView, matchView, equipmentTypeView;
+    private Button btnClubs, btnSports, btnLicences, btnMatchs, btnTypeEquipment;
 
     // --- ÉLÉMENTS CLUB ---
     private TextField clubNameField, clubDescriptionField, meetingScheduleField, maxCapacityField;
@@ -81,6 +85,12 @@ public class AdminDashboardFrame extends Application {
     private List<TypeSport> matchSportCache = new ArrayList<>();
     private List<MatchRequest> matchRequestCache = new ArrayList<>();
 
+    // --- ÉLÉMENTS TYPE EQUIPEMENT ---
+    private ListView<EquipmentType> equipmentTypeList;
+    private TextField equipmentTypeNameField;
+    private TextArea equipmentTypeDescField;
+    private Label equipmentTypeMessageLabel;
+
     public void setClubController(ClubController controller) {
         this.clubController = controller;
     }
@@ -105,20 +115,23 @@ public class AdminDashboardFrame extends Application {
         btnSports = createMenuButton("⚙ Type de Sports", false);
         btnLicences = createMenuButton("📜 Valider Licences", false);
         btnMatchs = createMenuButton("⚽ Gestion Matchs", false);
+        btnTypeEquipment = createMenuButton("🏷️ Type Equipement", false);
         Button btnLogout = createMenuButton("🚪 Déconnexion", false);
 
-        sidebar.getChildren().addAll(menuLabel, new Separator(), btnClubs, btnSports, btnLicences, btnMatchs, btnLogout);
+        sidebar.getChildren().addAll(menuLabel, new Separator(), btnClubs, btnSports, btnLicences, btnMatchs, btnTypeEquipment, btnLogout);
 
         // --- PRÉPARATION DES VUES ---
         createClubView();
         createSportView();
         createLicenceAdminView();
         createMatchView();
+        createEquipmentTypeView();
 
-        contentArea = new StackPane(clubView, sportView, licenceAdminView, matchView);
+        contentArea = new StackPane(clubView, sportView, licenceAdminView, matchView, equipmentTypeView);
         sportView.setVisible(false);
         licenceAdminView.setVisible(false);
         matchView.setVisible(false);
+        equipmentTypeView.setVisible(false);
 
         // --- LOGIQUE DE NAVIGATION ---
         btnClubs.setOnAction(e -> {
@@ -138,6 +151,10 @@ public class AdminDashboardFrame extends Application {
             refreshMatchChoices();
             refreshMatchList();
             refreshMatchRequestList();
+        });
+        btnTypeEquipment.setOnAction(e -> {
+            switchView(equipmentTypeView, btnTypeEquipment);
+            refreshEquipmentTypeList();
         });
         btnLogout.setOnAction(e -> handleLogout(primaryStage));
 
@@ -397,6 +414,86 @@ public class AdminDashboardFrame extends Application {
     }
 
     // ==========================================
+    // VUE : TYPE EQUIPEMENT (ADMIN)
+    // ==========================================
+    private void createEquipmentTypeView() {
+        equipmentTypeView = new VBox(20);
+        equipmentTypeView.setPadding(new Insets(30));
+
+        Label title = new Label("Gestion des Types d'Équipement");
+        title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #34495e;");
+
+        equipmentTypeNameField = new TextField();
+        equipmentTypeNameField.setPromptText("Nom");
+        equipmentTypeDescField = new TextArea();
+        equipmentTypeDescField.setPromptText("Description");
+        equipmentTypeDescField.setPrefRowCount(3);
+
+        Button btnCreate = new Button("➕ Créer");
+        styleButton(btnCreate, "#2ecc71");
+        Button btnDelete = new Button("🗑 Supprimer");
+        styleButton(btnDelete, "#e74c3c");
+
+        equipmentTypeMessageLabel = new Label();
+        equipmentTypeMessageLabel.setStyle("-fx-text-fill: #7f8c8d;");
+
+        equipmentTypeList = new ListView<>();
+        equipmentTypeList.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(EquipmentType item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName());
+                }
+            }
+        });
+
+        btnCreate.setOnAction(e -> handleCreateEquipmentType());
+        btnDelete.setOnAction(e -> handleDeleteEquipmentType());
+
+        equipmentTypeView.getChildren().addAll(
+                title,
+                equipmentTypeNameField,
+                equipmentTypeDescField,
+                new HBox(10, btnCreate, btnDelete),
+                equipmentTypeMessageLabel,
+                new Separator(),
+                equipmentTypeList
+        );
+    }
+
+    private void handleCreateEquipmentType() {
+        EquipmentTypeActionResult result = equipmentTypeController.handleCreate(
+                equipmentTypeNameField.getText(),
+                equipmentTypeDescField.getText()
+        );
+        equipmentTypeMessageLabel.setText(result.getMessage());
+        if (result.isSuccess()) {
+            refreshEquipmentTypeList();
+        }
+    }
+
+    private void handleDeleteEquipmentType() {
+        EquipmentType selected = equipmentTypeList.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            equipmentTypeMessageLabel.setText("Sélectionnez un type.");
+            return;
+        }
+        EquipmentTypeActionResult result = equipmentTypeController.handleDelete(selected.getId());
+        equipmentTypeMessageLabel.setText(result.getMessage());
+        if (result.isSuccess()) {
+            refreshEquipmentTypeList();
+        }
+    }
+
+    private void refreshEquipmentTypeList() {
+        List<EquipmentType> list = equipmentTypeController.handleListAll();
+        equipmentTypeList.setItems(FXCollections.observableArrayList(list == null ? List.of() : list));
+    }
+
+    // ==========================================
     // VUE 2 : GESTION DES SPORTS
     // ==========================================
     private void createSportView() {
@@ -478,12 +575,18 @@ public class AdminDashboardFrame extends Application {
         sportView.setVisible(false);
         licenceAdminView.setVisible(false);
         matchView.setVisible(false);
+        if (equipmentTypeView != null) {
+            equipmentTypeView.setVisible(false);
+        }
         view.setVisible(true);
 
         btnClubs.setStyle(createMenuButtonStyle(btnClubs == activeBtn));
         btnSports.setStyle(createMenuButtonStyle(btnSports == activeBtn));
         btnLicences.setStyle(createMenuButtonStyle(btnLicences == activeBtn));
         btnMatchs.setStyle(createMenuButtonStyle(btnMatchs == activeBtn));
+        if (btnTypeEquipment != null) {
+            btnTypeEquipment.setStyle(createMenuButtonStyle(btnTypeEquipment == activeBtn));
+        }
     }
 
     private String createMenuButtonStyle(boolean active) {

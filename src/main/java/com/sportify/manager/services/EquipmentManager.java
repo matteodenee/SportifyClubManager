@@ -35,6 +35,9 @@ public class EquipmentManager {
         if (equipment.getQuantity() <= 0) {
             return false;
         }
+        if (equipment.getClubId() <= 0) {
+            return false;
+        }
         if (equipmentDAO.findByName(equipment.getName()) != null) {
             return false;
         }
@@ -64,13 +67,34 @@ public class EquipmentManager {
         if (equipmentId <= 0 || start == null || end == null) {
             return false;
         }
-        List<Reservation> conflicts = reservationDAO.findOverlapping(equipmentId, start, end);
-        return conflicts == null || conflicts.isEmpty();
+        Equipment equipment = equipmentDAO.findById(equipmentId);
+        if (equipment == null) {
+            return false;
+        }
+        int reserved = reservationDAO.countOverlapping(equipmentId, start, end);
+        return reserved < equipment.getQuantity();
     }
 
     public List<Equipment> getAllEquipment() {
         List<Equipment> list = equipmentDAO.listAll();
         return list != null ? list : Collections.emptyList();
+    }
+
+    public List<Reservation> getReservationsByUser(String userId) {
+        List<Reservation> list = reservationDAO.listByUser(userId);
+        return list != null ? list : Collections.emptyList();
+    }
+
+    public List<Reservation> getReservationsByClub(int clubId) {
+        List<Reservation> list = reservationDAO.listByClub(clubId);
+        return list != null ? list : Collections.emptyList();
+    }
+
+    public boolean updateReservationStatus(int reservationId, String status) {
+        if (reservationId <= 0 || isBlank(status)) {
+            return false;
+        }
+        return reservationDAO.updateStatus(reservationId, status.trim().toUpperCase());
     }
 
     private boolean isBlank(String value) {

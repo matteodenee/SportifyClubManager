@@ -13,6 +13,7 @@ public interface TrainingDAO {
     boolean create(Training entrainement);
 
     List<Training> getUpcomingByClub(int clubId, LocalDate fromDate);
+    List<Training> getUpcomingByTeam(int teamId, LocalDate fromDate);
 
     Optional<Training> getById(int id);
 

@@ -42,6 +42,13 @@ public class TrainingManager {
         return getDAO().getUpcomingByClub(clubId, fromDate);
     }
 
+    public List<Training> listUpcomingTrainingsByTeam(int teamId, LocalDate fromDate) {
+        if (teamId <= 0) {
+            return Collections.emptyList();
+        }
+        return getDAO().getUpcomingByTeam(teamId, fromDate);
+    }
+
     public boolean markParticipation(int entrainementId, String userId, ParticipationStatus status) {
         if (entrainementId <= 0 || userId == null || userId.isBlank()) {
             return false;

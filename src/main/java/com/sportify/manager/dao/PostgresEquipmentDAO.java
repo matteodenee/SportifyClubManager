@@ -18,14 +18,15 @@ public class PostgresEquipmentDAO implements EquipmentDAO {
 
     @Override
     public boolean insert(Equipment equipment) {
-        String sql = "INSERT INTO equipments (name, type, condition, quantity, type_id) " +
-                "VALUES (?, ?, ?, ?, (SELECT id FROM equipment_types WHERE LOWER(name)=LOWER(?)))";
+        String sql = "INSERT INTO equipments (name, type, condition, quantity, type_id, club_id) " +
+                "VALUES (?, ?, ?, ?, (SELECT id FROM equipment_types WHERE LOWER(name)=LOWER(?)), ?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, equipment.getName());
             stmt.setString(2, equipment.getType());
             stmt.setString(3, equipment.getCondition());
             stmt.setInt(4, equipment.getQuantity());
             stmt.setString(5, equipment.getType());
+            stmt.setObject(6, equipment.getClubId() > 0 ? equipment.getClubId() : null);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             System.err.println("Erreur SQL lors de l'insertion d'equipement: " + e.getMessage());
@@ -35,7 +36,7 @@ public class PostgresEquipmentDAO implements EquipmentDAO {
 
     @Override
     public Equipment findByName(String name) {
-        String sql = "SELECT id, name, type, condition, quantity FROM equipments WHERE LOWER(name) = LOWER(?)";
+        String sql = "SELECT id, name, type, condition, quantity, club_id FROM equipments WHERE LOWER(name) = LOWER(?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, name);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -45,7 +46,8 @@ public class PostgresEquipmentDAO implements EquipmentDAO {
                             rs.getString("name"),
                             rs.getString("type"),
                             rs.getString("condition"),
-                            rs.getInt("quantity")
+                            rs.getInt("quantity"),
+                            rs.getInt("club_id")
                     );
                 }
             }
@@ -57,7 +59,7 @@ public class PostgresEquipmentDAO implements EquipmentDAO {
 
     @Override
     public Equipment findById(int id) {
-        String sql = "SELECT id, name, type, condition, quantity FROM equipments WHERE id = ?";
+        String sql = "SELECT id, name, type, condition, quantity, club_id FROM equipments WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -67,7 +69,8 @@ public class PostgresEquipmentDAO implements EquipmentDAO {
                             rs.getString("name"),
                             rs.getString("type"),
                             rs.getString("condition"),
-                            rs.getInt("quantity")
+                            rs.getInt("quantity"),
+                            rs.getInt("club_id")
                     );
                 }
             }
@@ -93,7 +96,7 @@ public class PostgresEquipmentDAO implements EquipmentDAO {
     @Override
     public List<Equipment> listAll() {
         List<Equipment> results = new ArrayList<>();
-        String sql = "SELECT id, name, type, condition, quantity FROM equipments ORDER BY name";
+        String sql = "SELECT id, name, type, condition, quantity, club_id FROM equipments ORDER BY name";
         try (PreparedStatement stmt = connection.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
@@ -102,7 +105,8 @@ public class PostgresEquipmentDAO implements EquipmentDAO {
                         rs.getString("name"),
                         rs.getString("type"),
                         rs.getString("condition"),
-                        rs.getInt("quantity")
+                        rs.getInt("quantity"),
+                        rs.getInt("club_id")
                 ));
             }
         } catch (SQLException e) {

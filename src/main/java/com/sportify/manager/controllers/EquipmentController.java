@@ -10,7 +10,7 @@ public class EquipmentController {
     private final EquipmentFacade facade = EquipmentFacade.getInstance();
     private String lastError;
 
-    public boolean handleCreateEquipment(String name, String type, String condition, int qty) {
+    public boolean handleCreateEquipment(String name, String type, String condition, int qty, int clubId) {
         if (name == null || name.trim().isEmpty()) {
             lastError = "Nom obligatoire.";
             return false;
@@ -27,8 +27,12 @@ public class EquipmentController {
             lastError = "Quantite invalide.";
             return false;
         }
+        if (clubId <= 0) {
+            lastError = "Club invalide.";
+            return false;
+        }
 
-        boolean ok = facade.addEquipment(new Equipment(name.trim(), type.trim(), condition.trim(), qty));
+        boolean ok = facade.addEquipment(new Equipment(name.trim(), type.trim(), condition.trim(), qty, clubId));
         lastError = ok ? null : "Ajout impossible.";
         return ok;
     }
@@ -55,6 +59,20 @@ public class EquipmentController {
 
     public List<Equipment> handleViewAllEquipment() {
         return facade.getAllEquipment();
+    }
+
+    public List<Reservation> handleReservationsByUser(String userId) {
+        return facade.getReservationsByUser(userId);
+    }
+
+    public List<Reservation> handleReservationsByClub(int clubId) {
+        return facade.getReservationsByClub(clubId);
+    }
+
+    public boolean handleUpdateReservationStatus(int reservationId, String status) {
+        boolean ok = facade.updateReservationStatus(reservationId, status);
+        lastError = ok ? null : "Mise à jour impossible.";
+        return ok;
     }
 
     public String getLastError() {
