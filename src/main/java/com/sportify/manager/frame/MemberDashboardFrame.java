@@ -3,6 +3,7 @@ package com.sportify.manager.frame;
 import com.sportify.manager.controllers.ClubController;
 import com.sportify.manager.controllers.LicenceController;
 import com.sportify.manager.controllers.EventController;
+import com.sportify.manager.controllers.MatchController;
 import com.sportify.manager.controllers.TeamController;
 import com.sportify.manager.facade.LicenceFacade;
 import com.sportify.manager.facade.TrainingFacade;
@@ -15,6 +16,8 @@ import com.sportify.manager.services.Team;
 import com.sportify.manager.services.Training;
 import com.sportify.manager.services.User;
 import com.sportify.manager.services.TypeSport;
+import com.sportify.manager.services.Match;
+import com.sportify.manager.services.MatchStatus;
 import com.sportify.manager.services.licence.Licence;
 import com.sportify.manager.services.licence.TypeLicence;
 import com.sportify.manager.services.licence.StatutLicence;
@@ -42,6 +45,7 @@ public class MemberDashboardFrame extends Application {
     private ClubController clubController;
     private LicenceController licenceController;
     private final EventController eventController = EventController.getInstance();
+    private final MatchController matchController = MatchController.getInstance();
     private final TeamController teamController = TeamController.getInstance();
     private final TrainingFacade trainingFacade = TrainingFacade.getInstance();
     private User currentUser;
@@ -52,6 +56,7 @@ public class MemberDashboardFrame extends Application {
     private VBox clubView;
     private VBox licenceView;
     private VBox trainingView;
+    private VBox matchView;
     private VBox eventView;
     private VBox communicationView;
     private StackPane contentArea;
@@ -68,6 +73,9 @@ public class MemberDashboardFrame extends Application {
     private ChoiceBox<ParticipationStatus> trainingStatusChoice;
     private Label trainingMessageLabel;
     private final Map<Integer, String> memberTeamNames = new HashMap<>();
+    private ComboBox<Team> memberMatchTeamCombo;
+    private TableView<Match> matchTable;
+    private Label matchMessageLabel;
 
     private boolean documentAttached = false;
 
@@ -100,76 +108,96 @@ public class MemberDashboardFrame extends Application {
         Button btnClubs = createMenuButton("Parcourir Clubs", true);
         Button btnLicence = createMenuButton(" Ma Licence", false);
         Button btnTraining = createMenuButton(" Trainings", false);
+        Button btnMatchs = createMenuButton("Match Management", false);
         Button btnStats = createMenuButton("Stat Management", false);
         Button btnEvents = createMenuButton("Events", false);
         Button btnCommunication = createMenuButton("Communication", false);
         Button btnLogout = createMenuButton("Déconnexion", false);
 
-        sidebar.getChildren().addAll(menuLabel, new Separator(), btnClubs, btnLicence, btnTraining, btnStats, btnEvents, btnCommunication, btnLogout);
+        sidebar.getChildren().addAll(menuLabel, new Separator(), btnClubs, btnLicence, btnTraining, btnMatchs, btnStats, btnEvents, btnCommunication, btnLogout);
 
         createClubView();
         createLicenceView();
         createTrainingView();
+        createMatchView();
         createEventView();
         createCommunicationView();
 
-        contentArea = new StackPane(clubView, licenceView, trainingView, eventView, communicationView);
+        contentArea = new StackPane(clubView, licenceView, trainingView, matchView, eventView, communicationView);
         licenceView.setVisible(false);
         trainingView.setVisible(false);
+        matchView.setVisible(false);
         eventView.setVisible(false);
         communicationView.setVisible(false);
 
         btnClubs.setOnAction(e -> {
-            switchView(btnClubs, btnLicence, btnTraining, btnStats, btnEvents, btnCommunication);
+            switchView(btnClubs, btnLicence, btnTraining, btnMatchs, btnStats, btnEvents, btnCommunication);
             clubView.setVisible(true);
             licenceView.setVisible(false);
             trainingView.setVisible(false);
+            matchView.setVisible(false);
             eventView.setVisible(false);
             communicationView.setVisible(false);
             refreshList();
         });
 
         btnLicence.setOnAction(e -> {
-            switchView(btnLicence, btnClubs, btnTraining, btnStats, btnEvents, btnCommunication);
+            switchView(btnLicence, btnClubs, btnTraining, btnMatchs, btnStats, btnEvents, btnCommunication);
             clubView.setVisible(false);
             licenceView.setVisible(true);
             trainingView.setVisible(false);
+            matchView.setVisible(false);
             eventView.setVisible(false);
             communicationView.setVisible(false);
             refreshLicenceInfo();
         });
 
         btnTraining.setOnAction(e -> {
-            switchView(btnTraining, btnClubs, btnLicence, btnStats, btnEvents,  btnCommunication);
+            switchView(btnTraining, btnClubs, btnLicence, btnMatchs, btnStats, btnEvents,  btnCommunication);
             clubView.setVisible(false);
             licenceView.setVisible(false);
             trainingView.setVisible(true);
+            matchView.setVisible(false);
             eventView.setVisible(false);
             communicationView.setVisible(false);
             refreshMemberTeams();
             refreshTrainingList();
         });
 
+        btnMatchs.setOnAction(e -> {
+            switchView(btnMatchs, btnClubs, btnLicence, btnTraining, btnStats, btnEvents, btnCommunication);
+            clubView.setVisible(false);
+            licenceView.setVisible(false);
+            trainingView.setVisible(false);
+            matchView.setVisible(true);
+            eventView.setVisible(false);
+            communicationView.setVisible(false);
+            refreshMemberTeams();
+            refreshMatchList();
+        });
+
         btnStats.setOnAction(e -> {
-            switchView(btnStats, btnClubs, btnLicence, btnTraining, btnEvents,  btnCommunication);
+            switchView(btnStats, btnClubs, btnLicence, btnTraining, btnMatchs, btnEvents,  btnCommunication);
             openMemberStats();
         });
 
         btnEvents.setOnAction(e -> {
-            switchView(btnEvents, btnClubs, btnLicence, btnTraining, btnStats, btnCommunication);
+            switchView(btnEvents, btnClubs, btnLicence, btnTraining, btnMatchs, btnStats, btnCommunication);
             clubView.setVisible(false);
             licenceView.setVisible(false);
             trainingView.setVisible(false);
+            matchView.setVisible(false);
             eventView.setVisible(true);
             communicationView.setVisible(false);
             refreshEventList();
         });
 
         btnCommunication.setOnAction(e -> {
-            switchView(btnCommunication, btnClubs, btnLicence, btnTraining, btnStats, btnEvents);
+            switchView(btnCommunication, btnClubs, btnLicence, btnTraining, btnMatchs, btnStats, btnEvents);
             clubView.setVisible(false);
             licenceView.setVisible(false);
             trainingView.setVisible(false);
+            matchView.setVisible(false);
             eventView.setVisible(false);
             communicationView.setVisible(true);
         });
@@ -352,6 +380,56 @@ public class MemberDashboardFrame extends Application {
         VBox.setVgrow(trainingTable, Priority.ALWAYS);
     }
 
+    private void createMatchView() {
+        matchView = new VBox(20);
+        matchView.setPadding(new Insets(30));
+
+        Label title = new Label("Match Management");
+        title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+
+        memberMatchTeamCombo = new ComboBox<>();
+        memberMatchTeamCombo.setPromptText("Choisir une équipe");
+        memberMatchTeamCombo.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getNom() + " (" + item.getCategorie() + ")");
+                }
+            }
+        });
+        memberMatchTeamCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getNom() + " (" + item.getCategorie() + ")");
+                }
+            }
+        });
+        memberMatchTeamCombo.valueProperty().addListener((obs, oldVal, newVal) -> refreshMatchList());
+
+        matchTable = new TableView<>();
+        setupMatchTable();
+
+        matchMessageLabel = new Label();
+        matchMessageLabel.setStyle("-fx-text-fill: #7f8c8d;");
+
+        matchView.getChildren().addAll(
+                title,
+                new Label("Mes équipes :"),
+                memberMatchTeamCombo,
+                new Separator(),
+                matchTable,
+                matchMessageLabel
+        );
+        VBox.setVgrow(matchTable, Priority.ALWAYS);
+    }
+
     private void createEventView() {
         eventView = new VBox(15);
         eventView.setPadding(new Insets(30));
@@ -412,6 +490,30 @@ public class MemberDashboardFrame extends Application {
         trainingTable.setPlaceholder(new Label("Aucun entraînement à afficher"));
     }
 
+    private void setupMatchTable() {
+        TableColumn<Match, String> dateCol = new TableColumn<>("Date");
+        dateCol.setCellValueFactory(cell -> new SimpleStringProperty(formatDateTime(cell.getValue().getDateTime())));
+
+        TableColumn<Match, String> opponentCol = new TableColumn<>("Adversaire");
+        opponentCol.setCellValueFactory(cell -> new SimpleStringProperty(getMatchOpponent(cell.getValue())));
+
+        TableColumn<Match, String> locationCol = new TableColumn<>("Lieu");
+        locationCol.setCellValueFactory(new PropertyValueFactory<>("location"));
+
+        TableColumn<Match, String> statusCol = new TableColumn<>("Statut");
+        statusCol.setCellValueFactory(cell -> {
+            MatchStatus status = cell.getValue().getStatus();
+            return new SimpleStringProperty(status == null ? "" : status.name());
+        });
+
+        TableColumn<Match, String> scoreCol = new TableColumn<>("Score");
+        scoreCol.setCellValueFactory(cell -> new SimpleStringProperty(getMatchScore(cell.getValue())));
+
+        matchTable.getColumns().addAll(dateCol, opponentCol, locationCol, statusCol, scoreCol);
+        matchTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        matchTable.setPlaceholder(new Label("Aucun match à afficher"));
+    }
+
     private void refreshMemberTeams() {
         List<Team> teams = teamController.handleGetTeamsByMember(currentUser.getId());
         memberTeamNames.clear();
@@ -426,6 +528,12 @@ public class MemberDashboardFrame extends Application {
         if (memberTeamCombo.getSelectionModel().isEmpty() && !memberTeamCombo.getItems().isEmpty()) {
             memberTeamCombo.getSelectionModel().selectFirst();
         }
+        if (memberMatchTeamCombo != null) {
+            memberMatchTeamCombo.setItems(FXCollections.observableArrayList(teams == null ? List.of() : teams));
+            if (memberMatchTeamCombo.getSelectionModel().isEmpty() && !memberMatchTeamCombo.getItems().isEmpty()) {
+                memberMatchTeamCombo.getSelectionModel().selectFirst();
+            }
+        }
     }
 
     private void refreshTrainingList() {
@@ -436,6 +544,24 @@ public class MemberDashboardFrame extends Application {
         }
         List<Training> trainings = trainingFacade.listUpcomingByTeam(selected.getId(), LocalDate.now());
         trainingTable.setItems(FXCollections.observableArrayList(trainings == null ? List.of() : trainings));
+    }
+
+    private void refreshMatchList() {
+        Team selected = memberMatchTeamCombo.getValue();
+        if (selected == null) {
+            matchTable.setItems(FXCollections.observableArrayList());
+            matchMessageLabel.setText("Sélectionnez une équipe.");
+            return;
+        }
+        List<Match> matches = matchController.handleGetMatchesByClub(memberClubId);
+        if (matches != null) {
+            int teamId = selected.getId();
+            matches = matches.stream()
+                    .filter(m -> m != null && (m.getHomeTeamId() == teamId || m.getAwayTeamId() == teamId))
+                    .toList();
+        }
+        matchTable.setItems(FXCollections.observableArrayList(matches == null ? List.of() : matches));
+        matchMessageLabel.setText("");
     }
 
     private void openMemberStats() {
@@ -462,6 +588,26 @@ public class MemberDashboardFrame extends Application {
     private String getMemberTeamName(int teamId) {
         String name = memberTeamNames.get(teamId);
         return name != null ? name : ("ID " + teamId);
+    }
+
+    private String getMatchOpponent(Match match) {
+        if (match == null) {
+            return "";
+        }
+        Team selected = memberMatchTeamCombo.getValue();
+        if (selected == null) {
+            return "";
+        }
+        int teamId = selected.getId();
+        int opponentId = match.getHomeTeamId() == teamId ? match.getAwayTeamId() : match.getHomeTeamId();
+        return getMemberTeamName(opponentId);
+    }
+
+    private String getMatchScore(Match match) {
+        if (match == null || match.getHomeScore() == null || match.getAwayScore() == null) {
+            return "-";
+        }
+        return match.getHomeScore() + " - " + match.getAwayScore();
     }
 
     private void createCommunicationView() {

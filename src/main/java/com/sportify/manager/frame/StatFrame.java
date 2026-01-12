@@ -82,8 +82,7 @@ public class StatFrame {
         });
         Label filterLabel = new Label("Période :");
         ComboBox<String> periodCombo = new ComboBox<>(FXCollections.observableArrayList("Global"));
-
-
+        periodCombo.getSelectionModel().selectFirst();
         periodCombo.setOnAction(e -> updateDashboard(periodCombo.getValue()));
         teamCombo.getSelectionModel().select(initial);
         teamCombo.setOnAction(e -> {
@@ -134,7 +133,7 @@ public class StatFrame {
         mainLayout.setBottom(footer);
 
         // Chargement initial
-        updateDashboard("Global");
+        updateDashboard(periodCombo.getValue());
 
         Scene scene = new Scene(mainLayout, 900, 600);
         stage.setTitle("Tableau de Bord Statistique - Sportify");
@@ -143,7 +142,8 @@ public class StatFrame {
     }
 
     private void updateDashboard(String period) {
-        List<Match> matches = loadMatches(period);
+        String effectivePeriod = (period == null || period.isBlank()) ? "Global" : period;
+        List<Match> matches = loadMatches(effectivePeriod);
         Map<String, Integer> results = computeResults(matches);
 
         ObservableList<PieChart.Data> pieData = FXCollections.observableArrayList(
@@ -155,7 +155,7 @@ public class StatFrame {
 
         kpiContainer.getChildren().clear();
         Map<String, Double> kpis = computeKpis(matches, results);
-        Map<String, Integer> smallEvents = statController.getTeamDistribution(currentTeamId, toSmallEventPeriod(period));
+        Map<String, Integer> smallEvents = statController.getTeamDistribution(currentTeamId, toSmallEventPeriod(effectivePeriod));
         for (Map.Entry<String, Double> entry : kpis.entrySet()) {
             String label = entry.getKey();
             double value = entry.getValue();
@@ -290,6 +290,9 @@ public class StatFrame {
     private boolean isInPeriod(LocalDateTime dateTime, String period) {
         if (dateTime == null) {
             return false;
+        }
+        if (period == null || period.isBlank()) {
+            return true;
         }
         if ("Global".equalsIgnoreCase(period)) {
             return true;
