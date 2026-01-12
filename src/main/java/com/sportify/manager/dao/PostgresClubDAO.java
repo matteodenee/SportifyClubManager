@@ -14,8 +14,7 @@ public class PostgresClubDAO extends ClubDAO {
         this.connection = connection;
     }
 
-    // --- MISE À JOUR : mapResultSetToClub ---
-    // C'est ici que l'erreur se produisait. On utilise maintenant le constructeur complet.
+
     private Club mapResultSetToClub(ResultSet rs) throws SQLException {
         Club club = new Club(
                 rs.getInt("clubid"),
@@ -23,28 +22,30 @@ public class PostgresClubDAO extends ClubDAO {
                 rs.getString("description"),
                 rs.getInt("sport_id"),      // NOUVEAU : On récupère l'ID numérique
                 rs.getString("sport_nom"),   // Le nom du sport (type)
-                rs.getString("meetingschedule"),
                 rs.getInt("maxcapacity")
         );
         club.setStatus(rs.getString("status"));
-        club.setRequirements(rs.getString("requirements"));
+        club.setManagerId(rs.getString("manager_id"));
         club.setCurrentMemberCount(this.getCurrentMembers(rs.getInt("clubid")));
         return club;
     }
 
     @Override
     public void addClub(Club club) throws SQLException {
-        // On insère maintenant soit via l'ID directement, soit via le nom
-        String query = "INSERT INTO clubs (name, description, sport_id, meetingschedule, maxcapacity, status, requirements) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+        String query = "INSERT INTO clubs (name, description, sport_id, maxcapacity, status, manager_id) " +
+                "VALUES (?, ?, ?, ?, ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, club.getName());
             stmt.setString(2, club.getDescription());
-            stmt.setInt(3, club.getSportId()); // Utilisation de l'ID numérique
-            stmt.setString(4, club.getMeetingSchedule());
-            stmt.setInt(5, club.getMaxCapacity());
-            stmt.setString(6, club.getStatus());
-            stmt.setString(7, club.getRequirements());
+            if (club.getSportId() > 0) {
+                stmt.setInt(3, club.getSportId());
+            } else {
+                stmt.setNull(3, Types.INTEGER);
+            }
+            stmt.setInt(4, club.getMaxCapacity());
+            stmt.setString(5, club.getStatus());
+            stmt.setString(6, club.getManagerId());
             stmt.executeUpdate();
         }
     }
@@ -52,16 +53,19 @@ public class PostgresClubDAO extends ClubDAO {
     @Override
     public void updateClub(Club club) throws SQLException {
         String query = "UPDATE clubs SET name = ?, description = ?, sport_id = ?, " +
-                "meetingschedule = ?, maxcapacity = ?, status = ?, requirements = ? WHERE clubid = ?";
+                "maxcapacity = ?, status = ?, manager_id = ? WHERE clubid = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, club.getName());
             stmt.setString(2, club.getDescription());
-            stmt.setInt(3, club.getSportId());
-            stmt.setString(4, club.getMeetingSchedule());
-            stmt.setInt(5, club.getMaxCapacity());
-            stmt.setString(6, club.getStatus());
-            stmt.setString(7, club.getRequirements());
-            stmt.setInt(8, club.getClubId()); // Correction : getClubId au lieu de getClubID
+            if (club.getSportId() > 0) {
+                stmt.setInt(3, club.getSportId());
+            } else {
+                stmt.setNull(3, Types.INTEGER);
+            }
+            stmt.setInt(4, club.getMaxCapacity());
+            stmt.setString(5, club.getStatus());
+            stmt.setString(6, club.getManagerId());
+            stmt.setInt(7, club.getClubId()); // Correction : getClubId au lieu de getClubID
             stmt.executeUpdate();
         }
     }
@@ -69,7 +73,7 @@ public class PostgresClubDAO extends ClubDAO {
     @Override
     public Club getClubById(int clubID) throws SQLException {
         String query = "SELECT c.*, ts.nom as sport_nom FROM clubs c " +
-                "JOIN type_sports ts ON c.sport_id = ts.id " +
+                "LEFT JOIN type_sports ts ON c.sport_id = ts.id " +
                 "WHERE c.clubid = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, clubID);
@@ -86,7 +90,7 @@ public class PostgresClubDAO extends ClubDAO {
     public List<Club> getAllClubs() throws SQLException {
         List<Club> clubs = new ArrayList<>();
         String query = "SELECT c.*, ts.nom as sport_nom FROM clubs c " +
-                "JOIN type_sports ts ON c.sport_id = ts.id";
+                "LEFT JOIN type_sports ts ON c.sport_id = ts.id";
         try (PreparedStatement stmt = connection.prepareStatement(query);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
@@ -100,7 +104,7 @@ public class PostgresClubDAO extends ClubDAO {
     public List<Club> getClubsByManager(String managerId) throws SQLException {
         List<Club> clubs = new ArrayList<>();
         String query = "SELECT c.*, ts.nom as sport_nom FROM clubs c " +
-                "JOIN type_sports ts ON c.sport_id = ts.id " +
+                "LEFT JOIN type_sports ts ON c.sport_id = ts.id " +
                 "WHERE c.manager_id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, managerId);
@@ -113,8 +117,7 @@ public class PostgresClubDAO extends ClubDAO {
         return clubs;
     }
 
-    // --- LE RESTE DES MÉTHODES RESTE IDENTIQUE ---
-    // (Conserve tes méthodes addMemberToClub, getCurrentMembers, etc. telles quelles)
+
 
     @Override
     public void deleteClub(int clubID) throws SQLException {
@@ -126,11 +129,12 @@ public class PostgresClubDAO extends ClubDAO {
     }
 
     @Override
-    public void addMemberToClub(int clubId, String userId) throws SQLException {
-        String sql = "INSERT INTO members (clubid, userid) VALUES (?, ?)";
+    public void addMemberToClub(int clubId, String userId, String roleInClub) throws SQLException {
+        String sql = "INSERT INTO members (clubid, userid, role_in_club) VALUES (?, ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, clubId);
             stmt.setString(2, userId);
+            stmt.setString(3, roleInClub);
             stmt.executeUpdate();
         }
     }
@@ -173,11 +177,12 @@ public class PostgresClubDAO extends ClubDAO {
     }
 
     @Override
-    public void createMembershipRequest(int clubId, String userId) throws SQLException {
-        String query = "INSERT INTO membership_requests (clubid, userid, status) VALUES (?, ?, 'PENDING')";
+    public void createMembershipRequest(int clubId, String userId, String roleInClub) throws SQLException {
+        String query = "INSERT INTO membership_requests (clubid, userid, status, role_in_club) VALUES (?, ?, 'PENDING', ?)";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, clubId);
             stmt.setString(2, userId);
+            stmt.setString(3, roleInClub);
             stmt.executeUpdate();
         }
     }
@@ -203,7 +208,7 @@ public class PostgresClubDAO extends ClubDAO {
     @Override
     public List<MembershipRequest> getPendingRequestsByDirector(String directorId) throws SQLException {
         List<MembershipRequest> requests = new ArrayList<>();
-        String query = "SELECT r.requestid, r.clubid, r.userid, c.name as clubname, u.name as username, r.status " +
+        String query = "SELECT r.requestid, r.clubid, r.userid, c.name as clubname, u.name as username, r.status, r.role_in_club " +
                 "FROM membership_requests r " +
                 "JOIN clubs c ON r.clubid = c.clubid " +
                 "JOIN users u ON r.userid = u.id " +
@@ -219,7 +224,8 @@ public class PostgresClubDAO extends ClubDAO {
                             rs.getString("userid"),
                             rs.getString("clubname"),
                             rs.getString("username"),
-                            rs.getString("status")
+                            rs.getString("status"),
+                            rs.getString("role_in_club")
                     ));
                 }
             }
@@ -239,7 +245,7 @@ public class PostgresClubDAO extends ClubDAO {
 
     @Override
     public MembershipRequest getRequestById(int requestId) throws SQLException {
-        String query = "SELECT r.requestid, r.clubid, r.userid, c.name as clubname, u.name as username, r.status " +
+        String query = "SELECT r.requestid, r.clubid, r.userid, c.name as clubname, u.name as username, r.status, r.role_in_club " +
                 "FROM membership_requests r " +
                 "JOIN clubs c ON r.clubid = c.clubid " +
                 "JOIN users u ON r.userid = u.id " +
@@ -254,7 +260,8 @@ public class PostgresClubDAO extends ClubDAO {
                             rs.getString("userid"),
                             rs.getString("clubname"),
                             rs.getString("username"),
-                            rs.getString("status")
+                            rs.getString("status"),
+                            rs.getString("role_in_club")
                     );
                 }
             }

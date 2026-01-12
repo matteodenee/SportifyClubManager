@@ -14,4 +14,5 @@ public interface TeamDAO {
     void addPlayerToTeam(int teamId, String userId) throws Exception;
     void removePlayerFromTeam(int teamId, String userId) throws Exception;
     List<User> findPlayersByTeamId(int teamId) throws Exception;
+    List<Team> findAllByMemberId(String userId) throws Exception;
 }

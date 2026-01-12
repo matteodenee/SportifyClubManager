@@ -35,6 +35,38 @@ public class TrainingManager {
         return getDAO().create(entrainement);
     }
 
+    public boolean createTraining(LocalDate date, LocalTime time, String location, String activity, int clubId, int teamId) {
+        if (!isValid(date, time, location, activity, clubId)) {
+            return false;
+        }
+        if (teamId <= 0) {
+            return false;
+        }
+        Training entrainement = new Training(date, time, location, activity, clubId, teamId);
+        return getDAO().create(entrainement);
+    }
+
+    public boolean updateTraining(int id, LocalDate date, LocalTime time, String location, String activity, int clubId, int teamId) {
+        if (id <= 0) {
+            return false;
+        }
+        if (!isValid(date, time, location, activity, clubId)) {
+            return false;
+        }
+        if (teamId <= 0) {
+            return false;
+        }
+        Training entrainement = new Training(id, date, time, location, activity, clubId, teamId);
+        return getDAO().update(entrainement);
+    }
+
+    public boolean deleteTraining(int id) {
+        if (id <= 0) {
+            return false;
+        }
+        return getDAO().delete(id);
+    }
+
     public List<Training> listUpcomingTrainings(int clubId, LocalDate fromDate) {
         if (clubId <= 0) {
             return Collections.emptyList();

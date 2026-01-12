@@ -64,7 +64,7 @@ public class RegisterFrame extends Application {
         confirmPasswordField.setStyle(inputStyle);
 
         // Configuration du sélecteur de rôle
-        roleChoiceBox.setItems(FXCollections.observableArrayList("MEMBER", "COACH", "DIRECTOR"));
+        roleChoiceBox.setItems(FXCollections.observableArrayList("MEMBER", "DIRECTOR"));
         roleChoiceBox.getSelectionModel().selectFirst();
         roleChoiceBox.setMaxWidth(Double.MAX_VALUE);
         roleChoiceBox.setStyle("-fx-background-color: #34495e; -fx-text-fill: white;");
@@ -78,10 +78,10 @@ public class RegisterFrame extends Application {
         btnBack.setMaxWidth(Double.MAX_VALUE);
         btnBack.setStyle("-fx-background-color: transparent; -fx-text-fill: #bdc3c7; -fx-border-color: #bdc3c7; -fx-border-radius: 5; -fx-cursor: hand;");
 
-        // Label pour les messages d'erreur ou succès
+
         messageLabel.setStyle("-fx-text-fill: #e74c3c; -fx-font-size: 12px;");
 
-        // Ajout des éléments au formulaire
+
         formBox.getChildren().addAll(
                 createStyledLabel("Infos personnelles :"), nameField, emailField,
                 createStyledLabel("Sécurité :"), idField, passwordField, confirmPasswordField,
@@ -103,9 +103,7 @@ public class RegisterFrame extends Application {
         primaryStage.show();
     }
 
-    /**
-     * Gère la redirection vers l'écran de Login.
-     */
+
     public void showLoginScreen() {
         Platform.runLater(() -> {
             try {
@@ -122,9 +120,7 @@ public class RegisterFrame extends Application {
         });
     }
 
-    /**
-     * Utilitaire pour créer des labels stylisés rapidement.
-     */
+
     private Label createStyledLabel(String text) {
         Label label = new Label(text);
         label.setStyle("-fx-text-fill: #95a5a6; -fx-font-size: 11px;");

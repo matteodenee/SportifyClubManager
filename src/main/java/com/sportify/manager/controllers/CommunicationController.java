@@ -5,6 +5,9 @@ import com.sportify.manager.frame.CommunicationFrame;
 import com.sportify.manager.services.NetConversation;
 import com.sportify.manager.services.NetConversationType;
 import com.sportify.manager.services.NetMessage;
+import com.sportify.manager.services.User;
+import com.sportify.manager.services.UserManager;
+import com.sportify.manager.dao.PostgresUserDAO;
 import javafx.collections.FXCollections;
 
 import java.time.ZoneId;
@@ -28,6 +31,7 @@ public class CommunicationController implements CommunicationListener {
     public void onOpen() {
         view.getStatusLabel().setText("Connexion au chat...");
         facade.connect("localhost", 5555);
+        loadClubMembers();
     }
 
     public void onSendClicked() {
@@ -39,7 +43,12 @@ public class CommunicationController implements CommunicationListener {
     public void onCreateGroupClicked() {
         String name = view.getGroupNameField().getText();
         view.getGroupNameField().clear();
-        facade.createGroup(name);
+        List<String> members = view.getSelectedMemberIds();
+        if (members == null || members.isEmpty()) {
+            view.getStatusLabel().setText("Sélectionnez au moins un membre.");
+            return;
+        }
+        facade.createGroup(name, members);
     }
 
     public void onConversationSelected(NetConversation conv) {
@@ -100,5 +109,26 @@ public class CommunicationController implements CommunicationListener {
     @Override
     public void onSystem(String message) {
         view.getStatusLabel().setText(message);
+    }
+
+    private void loadClubMembers() {
+        User current = UserManager.createUserManager().getCurrentUser();
+        if (current == null) {
+            view.setGroupControlsVisible(false);
+            return;
+        }
+        boolean isDirector = "DIRECTOR".equalsIgnoreCase(current.getRole());
+        if (!isDirector) {
+            view.setGroupControlsVisible(false);
+            return;
+        }
+        int clubId = PostgresUserDAO.getInstance().getClubIdByDirector(current.getId());
+        if (clubId <= 0) {
+            view.setGroupControlsVisible(false);
+            return;
+        }
+        List<User> members = PostgresUserDAO.getInstance().getMembersByClub(clubId);
+        view.setGroupControlsVisible(true);
+        view.setClubMembers(members == null ? List.of() : members);
     }
 }

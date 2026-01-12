@@ -4,8 +4,7 @@ import com.sportify.manager.dao.MatchDAO;
 import com.sportify.manager.persistence.AbstractFactory;
 import java.util.List;
 
-// On ne doit pas importer TypeSportManager s'il est dans le même package,
-// mais on doit s'assurer que TypeSport est accessible.
+
 public class MatchManager {
 
     private static MatchManager instance;
@@ -13,7 +12,7 @@ public class MatchManager {
     private final TypeSportManager typeSportManager;
 
     private MatchManager() {
-        // Vérifie que AbstractFactory n'est pas null avant l'appel
+
         if (AbstractFactory.getFactory() == null) {
             throw new RuntimeException("AbstractFactory n'est pas initialisée !");
         }
@@ -61,7 +60,7 @@ public class MatchManager {
         if (m == null) throw new Exception("Match null");
         if (m.getTypeSportId() <= 0) throw new Exception("TypeSport invalide");
 
-        // Appel de la méthode qui existe dans ton TypeSportManager
+
         TypeSport ts = typeSportManager.getTypeSportById(m.getTypeSportId());
         if (ts == null) throw new Exception("TypeSport introuvable");
 

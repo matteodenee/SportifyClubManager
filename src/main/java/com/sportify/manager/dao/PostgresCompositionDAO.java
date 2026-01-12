@@ -24,7 +24,7 @@ public class PostgresCompositionDAO implements CompositionDAO {
         try {
             con.setAutoCommit(false);
 
-            // 1. Suppression de l'ancienne composition
+
             try (PreparedStatement psDel = con.prepareStatement(del)) {
                 psDel.setInt(1, matchId);
                 psDel.setInt(2, teamId);
@@ -44,8 +44,8 @@ public class PostgresCompositionDAO implements CompositionDAO {
                 psIns.executeBatch();
             }
 
-            // --- INTEGRATION STATS ---
-            // On génère un événement de participation pour chaque joueur pour ton module Stats
+
+
             generateParticipationStats(matchId, teamId, assignments);
 
             con.commit();
@@ -59,9 +59,7 @@ public class PostgresCompositionDAO implements CompositionDAO {
         }
     }
 
-    /**
-     * Crée des SmallEvents de type 'PARTICIPATION' pour alimenter les statistiques.
-     */
+
     private void generateParticipationStats(int matchId, int teamId, List<RoleAssignment> assignments) throws SQLException {
         PostgresStatDAO statDAO = new PostgresStatDAO(con);
         Timestamp now = new Timestamp(System.currentTimeMillis());
@@ -74,7 +72,8 @@ public class PostgresCompositionDAO implements CompositionDAO {
                     teamId,
                     a.getPlayerId(),
                     now,
-                    "Saison Actuelle"
+                    "Saison Actuelle",
+                    matchId
             );
             statDAO.addSmallEvent(participation);
         }

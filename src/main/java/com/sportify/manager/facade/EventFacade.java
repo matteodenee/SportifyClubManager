@@ -7,10 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Facade pour simplifier l'accès aux opérations sur les événements.
- * Pattern Singleton.
- */
+
 public class EventFacade {
     private static EventFacade instance = null;
     private final EventManager eventManager;
@@ -26,9 +23,7 @@ public class EventFacade {
         return instance;
     }
 
-    /**
-     * Crée un nouvel événement.
-     */
+
     public boolean createEvent(String nom, String description, LocalDateTime dateDebut,
                               int dureeMinutes, String lieu, String type,
                               int clubId, String createurId) {

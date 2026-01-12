@@ -6,7 +6,7 @@ import java.sql.Connection;
 public class PostgresFactory extends AbstractFactory {
 
     public PostgresFactory() {
-        // Constructeur vide
+
     }
 
     @Override
@@ -50,7 +50,7 @@ public class PostgresFactory extends AbstractFactory {
         return new PostgresTrainingDAO(connection);
     }
 
-    // --- LES DEUX MÉTHODES MANQUANTES QUI CAUSENT L'ERREUR ---
+
 
     @Override
     public MatchDAO createMatchDAO() {
@@ -78,13 +78,21 @@ public class PostgresFactory extends AbstractFactory {
 
     @Override
     public ConversationDAO createConversationDAO() {
+        PostgresUserDAO.getInstance();
         Connection connection = PostgresUserDAO.getConnection();
+        if (connection == null) {
+            throw new IllegalStateException("Connexion DB indisponible pour ConversationDAO.");
+        }
         return new PostgresConversationDAO(connection);
     }
 
     @Override
     public MessageDAO createMessageDAO() {
+        PostgresUserDAO.getInstance();
         Connection connection = PostgresUserDAO.getConnection();
+        if (connection == null) {
+            throw new IllegalStateException("Connexion DB indisponible pour MessageDAO.");
+        }
         return new PostgresMessageDAO(connection);
     }
 
@@ -106,6 +114,11 @@ public class PostgresFactory extends AbstractFactory {
         return new PostgresReservationDAO(connection);
     }
 
+    @Override
+    public SmallEventDAO createSmallEventDAO() {
+        Connection connection = PostgresUserDAO.getConnection();
+        return new PostgresSmallEventDAO(connection);
+    }
 
 
 

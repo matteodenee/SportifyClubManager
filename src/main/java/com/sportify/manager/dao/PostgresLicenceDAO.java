@@ -21,8 +21,7 @@ public class PostgresLicenceDAO extends LicenceDAO {
 
     @Override
     public void insert(Licence licence) {
-        // CORRECTION : On insère uniquement les champs nécessaires à la création (7.1)
-        // Les dates de début/fin/décision sont NULL tant que l'admin n'a pas validé.
+
         String sql = "INSERT INTO licences (id, sport_id, type_licence, statut, date_demande, membre_id) " +
                 "VALUES (?, ?, ?, ?, ?, ?)";
 
@@ -37,14 +36,14 @@ public class PostgresLicenceDAO extends LicenceDAO {
             stmt.executeUpdate();
         } catch (SQLException e) {
             System.err.println("Erreur SQL lors de l'insertion de la licence : " + e.getMessage());
-            // On pourrait jeter une RuntimeException ici pour que le Controller soit au courant
+
             throw new RuntimeException("Impossible d'enregistrer la licence en base de données.", e);
         }
     }
 
     @Override
     public void update(Licence licence) {
-        // CORRECTION : Mise à jour complète pour le processus de validation (7.2)
+
         String sql = "UPDATE licences SET statut = ?, date_debut = ?, date_fin = ?, " +
                 "date_decision = ?, commentaire_admin = ? WHERE id = ?";
 
@@ -117,11 +116,9 @@ public class PostgresLicenceDAO extends LicenceDAO {
         return licences;
     }
 
-    /**
-     * Helper pour transformer une ligne SQL en objet Licence (7.4 & 7.5)
-     */
+
     private Licence mapResultSetToLicence(ResultSet rs) throws SQLException {
-        // On récupère le membre via le UserDAO (On suppose que PostgresUserDAO.getInstance() existe)
+
         User membre = PostgresUserDAO.getInstance().getUserById(rs.getString("membre_id"));
 
         TypeSport sport = new TypeSport(
@@ -140,7 +137,7 @@ public class PostgresLicenceDAO extends LicenceDAO {
                 rs.getDate("date_debut"),
                 rs.getDate("date_fin"),
                 membre,
-                null, // Les documents pourraient être chargés dans une table séparée si besoin
+                null,
                 rs.getDate("date_decision"),
                 rs.getString("commentaire_admin")
         );

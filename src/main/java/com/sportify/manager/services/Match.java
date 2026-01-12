@@ -32,7 +32,7 @@ public class Match {
         this.awayScore = awayScore;
     }
 
-    // --- GETTERS & SETTERS (Crucial pour MatchManager et DAO) ---
+
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
 
@@ -54,7 +54,7 @@ public class Match {
     public LocalDateTime getCompositionDeadline() { return compositionDeadline; }
     public void setCompositionDeadline(LocalDateTime deadline) { this.compositionDeadline = deadline; }
 
-    // C'EST CETTE MÉTHODE QUI RÉSOUT TON ERREUR :
+
     public MatchStatus getStatus() { return status; }
     public void setStatus(MatchStatus status) { this.status = status; }
 
@@ -62,9 +62,8 @@ public class Match {
     public void setHomeScore(Integer homeScore) { this.homeScore = homeScore; }
 
     public Integer getAwayScore() { return awayScore; }
-    public void setAwayScore(Integer awayScore) { this.awayScore = awayScore; }
 
-    // --- MÉTHODE MÉTIER ---
+
     public String determineResultForTeam(int teamId) {
         if (homeScore == null || awayScore == null) return "NUL";
         if (teamId == homeTeamId) {

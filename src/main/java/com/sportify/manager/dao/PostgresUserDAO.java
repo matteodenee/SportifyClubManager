@@ -47,19 +47,19 @@ public class PostgresUserDAO extends UserDAO {
         String sql = "INSERT INTO users (id, password, name, email, role) VALUES (?, ?, ?, ?, ?)";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            // Index 1 : ID
+
             stmt.setString(1, user.getId());
 
-            // Index 2 : Password (Vérifie bien que user.getPwd() renvoie le mot de passe !)
+
             stmt.setString(2, user.getPwd());
 
-            // Index 3 : Name
+
             stmt.setString(3, user.getName());
 
-            // Index 4 : Email
+
             stmt.setString(4, user.getEmail());
 
-            // Index 5 : Role
+
             stmt.setString(5, user.getRole());
 
             stmt.executeUpdate();
@@ -88,6 +88,28 @@ public class PostgresUserDAO extends UserDAO {
                             rs.getString("role")
                     ));
                 }
+            }
+        }
+        return users;
+    }
+
+    public java.util.List<User> getDirectorsWithoutClub() throws SQLException {
+        java.util.List<User> users = new java.util.ArrayList<>();
+        String sql = "SELECT u.id, u.password, u.name, u.email, u.role " +
+                "FROM users u " +
+                "LEFT JOIN clubs c ON c.manager_id = u.id " +
+                "WHERE u.role = 'DIRECTOR' AND c.clubid IS NULL " +
+                "ORDER BY u.name";
+        try (PreparedStatement stmt = connection.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                users.add(new User(
+                        rs.getString("id"),
+                        rs.getString("password"),
+                        rs.getString("name"),
+                        rs.getString("email"),
+                        rs.getString("role")
+                ));
             }
         }
         return users;
@@ -148,21 +170,15 @@ public class PostgresUserDAO extends UserDAO {
     // --- AUTRES MÉTHODES EXISTANTES ---
 
     public int getClubIdByCoach(String coachId) {
-        System.out.println("🔍 getClubIdByCoach(" + coachId + ")");
         String sql = "SELECT clubid FROM members WHERE userid = ? AND role_in_club = 'COACH'";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, coachId);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
-                int clubId = rs.getInt("clubid");
-                System.out.println("✅ Club trouvé: " + clubId);
-                return clubId;
+                return rs.getInt("clubid");
             }
-            System.out.println("❌ Aucun club trouvé pour ce coach");
             return -1;
         } catch (SQLException e) {
-            System.err.println("❌ Erreur SQL: " + e.getMessage());
-            e.printStackTrace();
             return -1;
         }
     }
@@ -182,6 +198,163 @@ public class PostgresUserDAO extends UserDAO {
             System.err.println("Erreur SQL getClubIdByMember: " + e.getMessage());
         }
         return -1;
+    }
+
+    public int getClubIdByDirector(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return -1;
+        }
+        String sql = "SELECT clubid FROM clubs WHERE manager_id = ? LIMIT 1";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("clubid");
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur SQL getClubIdByDirector: " + e.getMessage());
+        }
+        return -1;
+    }
+
+    public String getDirectorIdByClub(int clubId) {
+        if (clubId <= 0) {
+            return null;
+        }
+        String sql = "SELECT manager_id FROM clubs WHERE clubid = ? LIMIT 1";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, clubId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getString("manager_id");
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur SQL getDirectorIdByClub: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public java.util.List<User> searchMembersByName(int clubId, String nameQuery) {
+        java.util.List<User> users = new java.util.ArrayList<>();
+        if (clubId <= 0 || nameQuery == null || nameQuery.isBlank()) {
+            return users;
+        }
+        String sql = "SELECT u.id, u.password, u.name, u.email, u.role " +
+                "FROM users u " +
+                "JOIN members m ON m.userid = u.id " +
+                "WHERE m.clubid = ? AND u.role = 'MEMBER' AND LOWER(u.name) LIKE LOWER(?) " +
+                "ORDER BY u.name";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, clubId);
+            stmt.setString(2, "%" + nameQuery.trim() + "%");
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    users.add(new User(
+                            rs.getString("id"),
+                            rs.getString("password"),
+                            rs.getString("name"),
+                            rs.getString("email"),
+                            rs.getString("role")
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur SQL searchMembersByName: " + e.getMessage());
+        }
+        return users;
+    }
+
+    public java.util.List<User> getMembersByClub(int clubId) {
+        java.util.List<User> users = new java.util.ArrayList<>();
+        if (clubId <= 0) {
+            return users;
+        }
+        String sql = "SELECT u.id, u.password, u.name, u.email, u.role " +
+                "FROM users u JOIN members m ON u.id = m.userid " +
+                "WHERE m.clubid = ? ORDER BY u.name";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, clubId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    users.add(new User(
+                            rs.getString("id"),
+                            rs.getString("password"),
+                            rs.getString("name"),
+                            rs.getString("email"),
+                            rs.getString("role")
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur SQL getMembersByClub: " + e.getMessage());
+        }
+        return users;
+    }
+
+    public String getRoleInClub(String userId, int clubId) {
+        if (userId == null || userId.isBlank() || clubId <= 0) {
+            return "";
+        }
+        String sql = "SELECT role_in_club FROM members WHERE userid = ? AND clubid = ? LIMIT 1";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, userId.trim());
+            stmt.setInt(2, clubId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String role = rs.getString("role_in_club");
+                    return role == null ? "" : role;
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur SQL getRoleInClub: " + e.getMessage());
+        }
+        return "";
+    }
+
+    public boolean hasActiveLicenceForSport(String userId, int sportId) {
+        if (userId == null || userId.isBlank() || sportId <= 0) {
+            return false;
+        }
+        String sql = "SELECT 1 FROM licences WHERE membre_id = ? AND sport_id = ? AND statut = 'ACTIVE' LIMIT 1";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, userId.trim());
+            stmt.setInt(2, sportId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur SQL hasActiveLicenceForSport: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean isMemberInClub(String userId, int clubId) {
+        if (userId == null || userId.isBlank() || clubId <= 0) {
+            return false;
+        }
+        String sql = "SELECT 1 FROM members WHERE userid = ? AND clubid = ? LIMIT 1";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, userId.trim());
+            stmt.setInt(2, clubId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            System.err.println("Erreur SQL isMemberInClub: " + e.getMessage());
+        }
+        return false;
+    }
+
+    public void updateUserRole(String userId, String role) throws SQLException {
+        if (userId == null || userId.isBlank() || role == null || role.isBlank()) {
+            return;
+        }
+        String sql = "UPDATE users SET role = ? WHERE id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, role);
+            stmt.setString(2, userId);
+            stmt.executeUpdate();
+        }
     }
 
     public static Connection getConnection() {

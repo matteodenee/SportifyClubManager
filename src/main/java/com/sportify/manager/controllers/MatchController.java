@@ -12,7 +12,7 @@ public class MatchController {
     private String lastError;
 
     private MatchController() {
-        // On pointe vers la facade située dans ton dossier facade
+
         this.matchFacade = MatchFacade.getInstance();
     }
 

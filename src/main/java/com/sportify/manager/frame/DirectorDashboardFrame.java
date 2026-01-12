@@ -21,7 +21,6 @@ import com.sportify.manager.services.TypeSport;
 import com.sportify.manager.services.User;
 import com.sportify.manager.services.licence.Licence;
 import com.sportify.manager.services.licence.StatutLicence;
-import com.sportify.manager.frame.CommunicationFrame;
 import javafx.application.Application;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -32,16 +31,13 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import com.sportify.manager.controllers.TrainingController;
-import com.sportify.manager.services.ParticipationStatus;
 import com.sportify.manager.services.Training;
-import javafx.geometry.Pos;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+
 
 import java.sql.SQLException;
 
@@ -49,7 +45,6 @@ public class DirectorDashboardFrame extends Application {
     private ClubController clubController;
     private TeamController teamController = TeamController.getInstance();
     private TypeSportController typeSportController = new TypeSportController();
-    private TrainingController trainingController;
     private final TrainingFacade trainingFacade = TrainingFacade.getInstance();
     private final EventController eventController = EventController.getInstance();
     private final EquipmentController equipmentController = new EquipmentController();
@@ -58,19 +53,19 @@ public class DirectorDashboardFrame extends Application {
     private User currentUser;
 
     // --- NAVIGATION ---
-    private VBox membershipView, licenceView;
+    private VBox membershipView, clubMembersView;
     private VBox teamView, trainingView, eventView, communicationView, equipmentView;
     private StackPane contentArea;
-    private Button btnRequests, btnLicences;
-    private Button btnTeam, btnTraining, btnEvents, btnCommunication, btnEquipment;
+    private Button btnRequests, btnClubMembers;
+    private Button btnTeam, btnTraining, btnStats, btnEvents, btnCommunication, btnEquipment;
 
     // --- TABLEAUX ---
     private TableView<MembershipRequest> requestTable;
-    private TableView<Licence> licenceTable;
+    private TableView<User> clubMembersTable;
     private TableView<Team> teamTable;
     private TableView<User> teamPlayersTable;
     private TextField requestSearchField;
-    private TextField licenceSearchField;
+    private TextField clubMemberSearchField;
     private TextField teamNameField;
     private TextField teamCategoryField;
     private ComboBox<Club> teamClubCombo;
@@ -80,9 +75,13 @@ public class DirectorDashboardFrame extends Application {
     private Label teamMessageLabel;
     private int currentTeamId = 0;
     private Label requestCountLabel;
-    private Label licenceCountLabel;
+    private Label clubMemberCountLabel;
+    private Label memberNameValue;
+    private Label memberRoleValue;
+    private Label memberEmailValue;
+    private Label memberLicenceValue;
     private java.util.List<MembershipRequest> requestCache = java.util.Collections.emptyList();
-    private java.util.List<Licence> licenceCache = java.util.Collections.emptyList();
+    private java.util.List<User> clubMemberCache = java.util.Collections.emptyList();
 
     // Training view
     private ComboBox<Team> trainingTeamCombo;
@@ -144,22 +143,24 @@ public class DirectorDashboardFrame extends Application {
         Label menuLabel = new Label("DIRECTION");
         menuLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px;");
 
-        btnRequests = createMenuButton("📩 Adhésions Clubs", true);
-        btnLicences = createMenuButton("📜 Licences Membres", false);
-        btnTeam = createMenuButton("👥 Team Management", false);
-        btnTraining = createMenuButton("🏋️ Training Management", false);
-        btnEvents = createMenuButton("📅 Event Management", false);
-        btnCommunication = createMenuButton("💬 Communication Management", false);
-        btnEquipment = createMenuButton("🧰 Equipement Management", false);
-        Button btnLogout = createMenuButton("🚪 Déconnexion", false);
+        btnRequests = createMenuButton("Adhésions Clubs", true);
+        btnClubMembers = createMenuButton(" Membres du club", false);
+        btnTeam = createMenuButton("Team Management", false);
+        btnTraining = createMenuButton("Training Management", false);
+        btnStats = createMenuButton("Stat Management", false);
+        btnEvents = createMenuButton("Event Management", false);
+        btnCommunication = createMenuButton("Communication Management", false);
+        btnEquipment = createMenuButton("Equipement Management", false);
+        Button btnLogout = createMenuButton("Déconnexion", false);
 
         sidebar.getChildren().addAll(
                 menuLabel,
                 new Separator(),
                 btnRequests,
-                btnLicences,
+                btnClubMembers,
                 btnTeam,
                 btnTraining,
+                btnStats,
                 btnEvents,
                 btnCommunication,
                 btnEquipment,
@@ -168,20 +169,20 @@ public class DirectorDashboardFrame extends Application {
 
         // --- VUES ---
         createMembershipView();
-        createLicenceView();
+        createClubMembersView();
         createTeamView();
         createPlaceholders();
 
         contentArea = new StackPane(
                 membershipView,
-                licenceView,
+                clubMembersView,
                 teamView,
                 trainingView,
                 eventView,
                 communicationView,
                 equipmentView
         );
-        licenceView.setVisible(false);
+        clubMembersView.setVisible(false);
         teamView.setVisible(false);
         trainingView.setVisible(false);
         eventView.setVisible(false);
@@ -190,7 +191,7 @@ public class DirectorDashboardFrame extends Application {
 
         // --- ACTIONS ---
         btnRequests.setOnAction(e -> { switchView(membershipView, btnRequests); refreshMembershipTable(); });
-        btnLicences.setOnAction(e -> { switchView(licenceView, btnLicences); refreshLicenceTable(); });
+        btnClubMembers.setOnAction(e -> { switchView(clubMembersView, btnClubMembers); refreshClubMembers(); });
         btnTeam.setOnAction(e -> {
             switchView(teamView, btnTeam);
             refreshTeamChoices();
@@ -199,6 +200,10 @@ public class DirectorDashboardFrame extends Application {
             switchView(trainingView, btnTraining);
             refreshTrainingTeams();
             refreshTrainingList();
+        });
+        btnStats.setOnAction(e -> {
+            setActiveButton(btnStats);
+            openDirectorStats();
         });
         btnEvents.setOnAction(e -> {
             switchView(eventView, btnEvents);
@@ -257,37 +262,56 @@ public class DirectorDashboardFrame extends Application {
         TableColumn<MembershipRequest, String> clubCol = new TableColumn<>("Club Visé");
         clubCol.setCellValueFactory(new PropertyValueFactory<>("clubName"));
 
-        requestTable.getColumns().addAll(userCol, clubCol);
+        TableColumn<MembershipRequest, String> roleCol = new TableColumn<>("Rôle demandé");
+        roleCol.setCellValueFactory(new PropertyValueFactory<>("roleInClub"));
+        requestTable.getColumns().addAll(userCol, clubCol, roleCol);
         requestTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
     }
 
     // ==========================================
-    // VUE 2 : LICENCES
+    // VUE 2 : MEMBRES DU CLUB
     // ==========================================
-    private void createLicenceView() {
-        licenceView = new VBox(20);
-        licenceView.setPadding(new Insets(30));
+    private void createClubMembersView() {
+        clubMembersView = new VBox(20);
+        clubMembersView.setPadding(new Insets(30));
 
-        Label title = new Label("VALIDATION DES LICENCES");
+        Label title = new Label("MEMBRES DU CLUB");
         title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
 
         HBox searchBar = new HBox(10);
-        licenceSearchField = new TextField();
-        licenceSearchField.setPromptText("Rechercher (membre/sport/type)...");
-        licenceCountLabel = new Label("0 licence(s)");
-        licenceCountLabel.setStyle("-fx-text-fill: #7f8c8d;");
-        searchBar.getChildren().addAll(licenceSearchField, licenceCountLabel);
+        clubMemberSearchField = new TextField();
+        clubMemberSearchField.setPromptText("Rechercher (nom/fonction)...");
+        clubMemberCountLabel = new Label("0 membre(s)");
+        clubMemberCountLabel.setStyle("-fx-text-fill: #7f8c8d;");
+        searchBar.getChildren().addAll(clubMemberSearchField, clubMemberCountLabel);
 
-        licenceTable = new TableView<>();
-        setupLicenceTableColumns();
+        clubMembersTable = new TableView<>();
+        setupClubMembersTableColumns();
 
-        Button btnApprove = new Button("✅ Octroyer la Licence");
-        styleButton(btnApprove, "#2ecc71");
-        btnApprove.setOnAction(e -> handleLicenceAction());
+        VBox detailBox = new VBox(8);
+        detailBox.setPadding(new Insets(12));
+        detailBox.setStyle("-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #dcdde1;");
 
-        licenceView.getChildren().addAll(title, searchBar, licenceTable, btnApprove);
+        memberNameValue = new Label("-");
+        memberEmailValue = new Label("-");
+        memberRoleValue = new Label("-");
+        memberLicenceValue = new Label("-");
 
-        licenceSearchField.textProperty().addListener((obs, old, val) -> applyLicenceFilter());
+        detailBox.getChildren().addAll(
+                new Label("Nom :"), memberNameValue,
+                new Label("Email :"), memberEmailValue,
+                new Label("Fonction :"), memberRoleValue,
+                new Label("Licence :"), memberLicenceValue
+        );
+
+        clubMembersView.getChildren().addAll(title, searchBar, clubMembersTable, detailBox);
+
+        clubMemberSearchField.textProperty().addListener((obs, old, val) -> applyClubMemberFilter());
+        clubMembersTable.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> {
+            if (sel != null) {
+                updateMemberDetails(sel);
+            }
+        });
     }
 
     // ==========================================
@@ -882,18 +906,20 @@ public class DirectorDashboardFrame extends Application {
         return dateTime == null ? "" : dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
     }
 
-    private void setupLicenceTableColumns() {
-        TableColumn<Licence, String> memberCol = new TableColumn<>("Membre");
-        memberCol.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getMembre().getName()));
+    private void setupClubMembersTableColumns() {
+        TableColumn<User, String> nameCol = new TableColumn<>("Nom");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
 
-        TableColumn<Licence, String> sportCol = new TableColumn<>("Discipline");
-        sportCol.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getSport().getNom()));
+        TableColumn<User, String> emailCol = new TableColumn<>("Email");
+        emailCol.setCellValueFactory(new PropertyValueFactory<>("email"));
 
-        TableColumn<Licence, String> typeCol = new TableColumn<>("Type de Licence");
-        typeCol.setCellValueFactory(new PropertyValueFactory<>("typeLicence"));
+        TableColumn<User, String> roleCol = new TableColumn<>("Fonction");
+        roleCol.setCellValueFactory(cell -> new SimpleStringProperty(
+                PostgresUserDAO.getInstance().getRoleInClub(cell.getValue().getId(), directorClubId)
+        ));
 
-        licenceTable.getColumns().addAll(memberCol, sportCol, typeCol);
-        licenceTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        clubMembersTable.getColumns().addAll(nameCol, emailCol, roleCol);
+        clubMembersTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
     }
 
     private void setupTeamTable() {
@@ -957,9 +983,14 @@ public class DirectorDashboardFrame extends Application {
         }
     }
 
-    private void refreshLicenceTable() {
-        licenceCache = LicenceFacade.getInstance().getLicencesByStatut(StatutLicence.EN_ATTENTE);
-        applyLicenceFilter();
+    private void refreshClubMembers() {
+        if (directorClubId <= 0) {
+            clubMemberCache = java.util.Collections.emptyList();
+            applyClubMemberFilter();
+            return;
+        }
+        clubMemberCache = PostgresUserDAO.getInstance().getMembersByClub(directorClubId);
+        applyClubMemberFilter();
     }
 
     private void handleMembershipAction() {
@@ -975,12 +1006,34 @@ public class DirectorDashboardFrame extends Application {
         }
     }
 
-    private void handleLicenceAction() {
-        Licence sel = licenceTable.getSelectionModel().getSelectedItem();
-        if (sel != null) {
-            LicenceFacade.getInstance().validerLicence(sel.getId(), true, "Validé par le directeur : " + currentUser.getName());
-            refreshLicenceTable();
-            showInfo("Licence validée", "La licence a été accordée.");
+    private void updateMemberDetails(User member) {
+        if (member == null) {
+            memberNameValue.setText("-");
+            memberEmailValue.setText("-");
+            memberRoleValue.setText("-");
+            memberLicenceValue.setText("-");
+            return;
+        }
+        memberNameValue.setText(member.getName());
+        memberEmailValue.setText(member.getEmail());
+        memberRoleValue.setText(PostgresUserDAO.getInstance().getRoleInClub(member.getId(), directorClubId));
+
+        List<Licence> licences = LicenceFacade.getInstance().getLicencesByMembre(member.getId());
+        Licence active = null;
+        if (licences != null) {
+            for (Licence l : licences) {
+                if (l != null && l.getStatut() == StatutLicence.ACTIVE) {
+                    active = l;
+                    break;
+                }
+            }
+        }
+        if (active == null) {
+            memberLicenceValue.setText("Aucune licence active");
+        } else {
+            String sport = active.getSport() == null ? "" : active.getSport().getNom();
+            String type = active.getTypeLicence() == null ? "" : active.getTypeLicence().toString();
+            memberLicenceValue.setText("ACTIVE - " + type + (sport.isBlank() ? "" : " (" + sport + ")"));
         }
     }
 
@@ -1202,26 +1255,39 @@ public class DirectorDashboardFrame extends Application {
         requestCountLabel.setText(filtered.size() + " demande(s)");
     }
 
-    private void applyLicenceFilter() {
-        String q = licenceSearchField.getText() == null ? "" : licenceSearchField.getText().trim().toLowerCase();
-        java.util.List<Licence> filtered = new java.util.ArrayList<>();
-        for (Licence l : licenceCache) {
-            String member = l.getMembre() == null ? "" : l.getMembre().getName().toLowerCase();
-            String sport = l.getSport() == null ? "" : l.getSport().getNom().toLowerCase();
-            String type = l.getTypeLicence() == null ? "" : l.getTypeLicence().toString().toLowerCase();
-            if (q.isEmpty() || member.contains(q) || sport.contains(q) || type.contains(q)) {
-                filtered.add(l);
+    private void applyClubMemberFilter() {
+        String q = clubMemberSearchField.getText() == null ? "" : clubMemberSearchField.getText().trim().toLowerCase();
+        java.util.List<User> filtered = new java.util.ArrayList<>();
+        for (User u : clubMemberCache) {
+            String name = u.getName() == null ? "" : u.getName().toLowerCase();
+            String roleInClub = PostgresUserDAO.getInstance().getRoleInClub(u.getId(), directorClubId).toLowerCase();
+            if (q.isEmpty() || name.contains(q) || roleInClub.contains(q)) {
+                filtered.add(u);
             }
         }
-        licenceTable.setItems(FXCollections.observableArrayList(filtered));
-        licenceCountLabel.setText(filtered.size() + " licence(s)");
+        clubMembersTable.setItems(FXCollections.observableArrayList(filtered));
+        clubMemberCountLabel.setText(filtered.size() + " membre(s)");
+    }
+
+    private void openDirectorStats() {
+        if (directorClubId <= 0) {
+            showError("Erreur", "Aucun club associé.");
+            return;
+        }
+        List<Team> teams = teamController.handleGetTeams(directorClubId);
+        if (teams == null || teams.isEmpty()) {
+            showInfo("Aucune équipe", "Aucune équipe trouvée pour ce club.");
+            return;
+        }
+        StatFrame statFrame = new StatFrame();
+        statFrame.show(teams);
     }
 
     // --- UI UTILS ---
 
     private void switchView(VBox view, Button btn) {
         membershipView.setVisible(false);
-        licenceView.setVisible(false);
+        clubMembersView.setVisible(false);
         teamView.setVisible(false);
         trainingView.setVisible(false);
         eventView.setVisible(false);
@@ -1241,9 +1307,10 @@ public class DirectorDashboardFrame extends Application {
 
     private void setActiveButton(Button active) {
         btnRequests.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;");
-        btnLicences.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;");
+        btnClubMembers.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;");
         btnTeam.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;");
         btnTraining.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;");
+        btnStats.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;");
         btnEvents.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;");
         btnCommunication.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;");
         btnEquipment.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;");

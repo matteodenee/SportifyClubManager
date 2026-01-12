@@ -2,6 +2,7 @@ package com.sportify.manager.services;
 
 import com.sportify.manager.dao.ConversationDAO;
 import com.sportify.manager.dao.MessageDAO;
+import com.sportify.manager.dao.PostgresUserDAO;
 
 import java.time.Instant;
 import java.util.List;
@@ -10,14 +11,16 @@ public class ConversationService {
 
     private final ConversationDAO conversationDAO;
     private final MessageDAO messageDAO;
+    private final PostgresUserDAO userDAO = PostgresUserDAO.getInstance();
 
     public ConversationService(ConversationDAO conversationDAO, MessageDAO messageDAO) {
         this.conversationDAO = conversationDAO;
         this.messageDAO = messageDAO;
     }
 
-    public long onUserEnterChat(String userId) {
-        long globalId = conversationDAO.ensureGlobalConversation();
+    public long onUserEnterChat(String userId, int clubId) {
+        validateClubAccess(userId, clubId);
+        long globalId = conversationDAO.ensureGlobalConversation(clubId);
         if (globalId <= 0) {
             throw new IllegalStateException("Impossible d'initialiser GLOBAL.");
         }
@@ -25,8 +28,9 @@ public class ConversationService {
         return globalId;
     }
 
-    public List<NetConversation> listUserConversations(String userId) {
-        return conversationDAO.listUserConversations(userId);
+    public List<NetConversation> listUserConversations(String userId, int clubId) {
+        validateClubAccess(userId, clubId);
+        return conversationDAO.listUserConversations(userId, clubId);
     }
 
     public List<NetMessage> history(String userId, long conversationId, int limit) {
@@ -40,17 +44,30 @@ public class ConversationService {
         }
     }
 
-    public long createGroup(String userId, String groupName) {
-        long id = conversationDAO.createGroup(groupName, userId);
+    public long createGroup(String userId, String groupName, int clubId, List<String> memberIds) {
+        validateClubAccess(userId, clubId);
+        long id = conversationDAO.createGroup(groupName, userId, clubId);
         if (id <= 0) {
             throw new IllegalStateException("Création groupe impossible.");
         }
         conversationDAO.addParticipant(id, userId);
+        if (memberIds != null) {
+            for (String memberId : memberIds) {
+                if (memberId != null && userDAO.isMemberInClub(memberId, clubId)) {
+                    conversationDAO.addParticipant(id, memberId);
+                }
+            }
+        }
+        String directorId = userDAO.getDirectorIdByClub(clubId);
+        if (directorId != null && !directorId.isBlank()) {
+            conversationDAO.addParticipant(id, directorId);
+        }
         return id;
     }
 
-    public void joinConversation(String userId, long conversationId) {
-        NetConversation conv = conversationDAO.getConversationById(conversationId);
+    public void joinConversation(String userId, long conversationId, int clubId) {
+        validateClubAccess(userId, clubId);
+        NetConversation conv = conversationDAO.getConversationById(conversationId, clubId);
         if (conv == null) {
             throw new IllegalArgumentException("Conversation introuvable.");
         }
@@ -71,5 +88,21 @@ public class ConversationService {
             throw new IllegalStateException("Erreur enregistrement message: " + e.getMessage(), e);
         }
         return msg;
+    }
+
+    private void validateClubAccess(String userId, int clubId) {
+        if (clubId <= 0) {
+            throw new IllegalArgumentException("Club invalide.");
+        }
+        if (userDAO.isMemberInClub(userId, clubId)) {
+            return;
+        }
+        int managedClubId = userDAO.getClubIdByDirector(userId);
+        if (managedClubId == clubId) {
+            return;
+        }
+        if (!userDAO.isMemberInClub(userId, clubId)) {
+            throw new IllegalArgumentException("Utilisateur non membre du club.");
+        }
     }
 }

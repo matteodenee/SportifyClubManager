@@ -11,7 +11,7 @@ public class TypeSportFacade {
 
     // Constructeur privé pour le Singleton
     private TypeSportFacade() {
-        // On récupère l'instance du Manager (via son propre Singleton)
+
         this.typeSportManager = TypeSportManager.getInstance();
     }
 

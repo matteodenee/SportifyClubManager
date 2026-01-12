@@ -1,12 +1,7 @@
-rm -rf bin
-javac --module-path /usr/share/openjfx/lib \
-      --add-modules javafx.controls,javafx.fxml \
-      -cp "postgresql-42.7.3.jar" \
-      -d bin \
-      $(find src -name "*.java")
-
-java --module-path /usr/share/openjfx/lib \
-     --add-modules javafx.controls,javafx.fxml \
-     -cp "bin:postgresql-42.7.3.jar" \
-     SportifyClubManager.frame.LoginFrame
-
+#!/usr/bin/env bash
+set -e
+mvn -q -DskipTests exec:java -Dexec.mainClass=com.sportify.manager.communication.network.ChatServerApp &
+SERVER_PID=$!
+sleep 1
+mvn -q -DskipTests javafx:run
+kill $SERVER_PID

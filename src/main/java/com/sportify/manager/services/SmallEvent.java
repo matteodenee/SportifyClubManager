@@ -4,18 +4,16 @@ import java.sql.Timestamp;
 
 public class SmallEvent {
     private int id;
-    private String type;        // Exemple: "GOAL", "YELLOW_CARD", "RED_CARD", "ASSIST"
-    private String description; // Détails optionnels
-    private int teamId;         // L'équipe concernée
-    private String playerId;    // Le joueur concerné (ID de l'utilisateur)
-    private Timestamp timestamp; // Date et heure de l'événement
-    private String period;      // Exemple: "Saison 2023-2024"
-
-    // Constructeur vide
-    public SmallEvent() {}
+    private String type;
+    private String description;
+    private int teamId;
+    private String playerId;
+    private Timestamp timestamp;
+    private String period;
+    private Integer matchId;
 
     // Constructeur complet
-    public SmallEvent(int id, String type, String description, int teamId, String playerId, Timestamp timestamp, String period) {
+    public SmallEvent(int id, String type, String description, int teamId, String playerId, Timestamp timestamp, String period, Integer matchId) {
         this.id = id;
         this.type = type;
         this.description = description;
@@ -23,6 +21,7 @@ public class SmallEvent {
         this.playerId = playerId;
         this.timestamp = timestamp;
         this.period = period;
+        this.matchId = matchId;
     }
 
     // Getters et Setters
@@ -46,4 +45,7 @@ public class SmallEvent {
 
     public String getPeriod() { return period; }
     public void setPeriod(String period) { this.period = period; }
+
+    public Integer getMatchId() { return matchId; }
+    public void setMatchId(Integer matchId) { this.matchId = matchId; }
 }

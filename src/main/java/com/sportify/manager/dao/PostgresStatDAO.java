@@ -14,7 +14,7 @@ public class PostgresStatDAO implements StatDAO {
         this.connection = connection;
     }
 
-    // --- MÉTHODES EXISTANTES ---
+
 
     @Override
     public List<SmallEvent> getEventsByTeam(int teamId, String period) throws SQLException {
@@ -45,8 +45,21 @@ public class PostgresStatDAO implements StatDAO {
     }
 
     @Override
+    public List<SmallEvent> getEventsByMatch(int matchId) throws SQLException {
+        List<SmallEvent> events = new ArrayList<>();
+        String query = "SELECT * FROM small_events WHERE match_id = ? ORDER BY event_date DESC";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, matchId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) events.add(mapRowToEvent(rs));
+            }
+        }
+        return events;
+    }
+
+    @Override
     public void addSmallEvent(SmallEvent event) throws SQLException {
-        String query = "INSERT INTO small_events (type, description, team_id, player_id, period, event_date) VALUES (?, ?, ?, ?, ?, ?)";
+        String query = "INSERT INTO small_events (type, description, team_id, player_id, period, event_date, match_id) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, event.getType());
             stmt.setString(2, event.getDescription());
@@ -54,11 +67,16 @@ public class PostgresStatDAO implements StatDAO {
             stmt.setString(4, event.getPlayerId());
             stmt.setString(5, event.getPeriod());
             stmt.setTimestamp(6, event.getTimestamp());
+            if (event.getMatchId() == null) {
+                stmt.setNull(7, Types.INTEGER);
+            } else {
+                stmt.setInt(7, event.getMatchId());
+            }
             stmt.executeUpdate();
         }
     }
 
-    // --- NOUVELLES MÉTHODES À IMPLÉMENTER (Correction de l'erreur) ---
+
 
     @Override
     public Map<String, Integer> getAggregatedStatsByTeam(int teamId, String period) throws SQLException {
@@ -77,7 +95,7 @@ public class PostgresStatDAO implements StatDAO {
     @Override
     public Map<String, Double> getPlayerPerformanceMetrics(String playerId, String period) throws SQLException {
         Map<String, Double> metrics = new HashMap<>();
-        // Exemple : Calculer le ratio de buts par rapport au total d'événements du joueur
+
         String query = "SELECT type, COUNT(*) as count FROM small_events WHERE player_id = ? AND period = ? GROUP BY type";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, playerId);
@@ -115,7 +133,7 @@ public class PostgresStatDAO implements StatDAO {
     @Override
     public Map<String, Integer> getTrendData(int teamId, String eventType, String startDate, String endDate) throws SQLException {
         Map<String, Integer> trends = new HashMap<>();
-        // On groupe par jour pour voir l'évolution (Trend)
+
         String query = "SELECT DATE(event_date) as day, COUNT(*) as total FROM small_events " +
                 "WHERE team_id = ? AND type = ? AND event_date BETWEEN ? AND ? " +
                 "GROUP BY day ORDER BY day ASC";
@@ -139,7 +157,15 @@ public class PostgresStatDAO implements StatDAO {
                 rs.getInt("team_id"),
                 rs.getString("player_id"),
                 rs.getTimestamp("event_date"),
-                rs.getString("period")
+                rs.getString("period"),
+                rs.getObject("match_id", Integer.class)
         );
+    }
+
+    public void deleteEventsByMatch(int matchId) throws SQLException {
+        try (PreparedStatement stmt = connection.prepareStatement("DELETE FROM small_events WHERE match_id = ?")) {
+            stmt.setInt(1, matchId);
+            stmt.executeUpdate();
+        }
     }
 }

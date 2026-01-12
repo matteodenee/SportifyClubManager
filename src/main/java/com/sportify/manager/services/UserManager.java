@@ -39,8 +39,7 @@ public class UserManager {
         return this.currentUser;
     }
 
-    // --- NOUVELLE MÉTHODE : LOGIQUE D'INSCRIPTION ---
-    // --- DANS UserManager.java ---
+
     public boolean createUser(String id, String name, String password, String email, String role) {
         try {
             AbstractFactory f = AbstractFactory.getFactory();
@@ -50,8 +49,6 @@ public class UserManager {
                 return false;
             }
 
-            // CORRECTION DE L'ORDRE : (id, password, name, email, role)
-            // On place 'password' en deuxième argument pour correspondre au constructeur
             User newUser = new User(id, password, name, email, role);
 
             udao.registerUser(newUser);
@@ -63,7 +60,7 @@ public class UserManager {
         }
     }
 
-    // Overload pour la signature simple (utilisée parfois par la Facade)
+
     public boolean createUser(String name, String password) {
         return createUser(name, name, password, "", "MEMBER");
     }

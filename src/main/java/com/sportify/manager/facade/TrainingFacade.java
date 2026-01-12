@@ -27,6 +27,18 @@ public class TrainingFacade {
         return TrainingManager.getTrainingManager().createTraining(date, time, location, activity, clubId);
     }
 
+    public boolean createTraining(LocalDate date, LocalTime time, String location, String activity, int clubId, int teamId) {
+        return TrainingManager.getTrainingManager().createTraining(date, time, location, activity, clubId, teamId);
+    }
+
+    public boolean updateTraining(int id, LocalDate date, LocalTime time, String location, String activity, int clubId, int teamId) {
+        return TrainingManager.getTrainingManager().updateTraining(id, date, time, location, activity, clubId, teamId);
+    }
+
+    public boolean deleteTraining(int id) {
+        return TrainingManager.getTrainingManager().deleteTraining(id);
+    }
+
     public List<Training> listUpcoming(int clubId, LocalDate fromDate) {
         return TrainingManager.getTrainingManager().listUpcomingTrainings(clubId, fromDate);
     }

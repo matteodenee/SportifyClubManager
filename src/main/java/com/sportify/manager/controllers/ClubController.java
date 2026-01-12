@@ -1,6 +1,7 @@
 package com.sportify.manager.controllers;
 
 import com.sportify.manager.dao.PostgresClubDAO;
+import com.sportify.manager.dao.PostgresUserDAO;
 import com.sportify.manager.services.Club;
 import com.sportify.manager.services.MembershipRequest;
 import com.sportify.manager.dao.ClubDAO;
@@ -24,19 +25,15 @@ public class ClubController {
         return clubDAO.getClubsByManager(managerId);
     }
 
-    public Club createClub(int clubID, String name, String description, int sportId, String type, String meetingSchedule, int maxCapacity) throws SQLException {
-
-        // On appelle maintenant le constructeur à 7 arguments de Club.java
-        Club newClub = new Club(clubID, name, description, sportId, type, meetingSchedule, maxCapacity);
+    public Club createClub(int clubID, String name, String description, int sportId, String type, int maxCapacity, String managerId) throws SQLException {
+        Club newClub = new Club(clubID, name, description, sportId, type, maxCapacity, managerId);
 
         clubDAO.addClub(newClub);
         return newClub;
     }
 
-    /**
-     * Inscription DIRECTE par l'Admin (UC 6)
-     */
-    public boolean addMemberToClub(int clubId, String userId) throws SQLException {
+
+    public boolean addMemberToClub(int clubId, String userId, String roleInClub) throws SQLException {
         if (clubDAO.isMember(clubId, userId)) {
             throw new SQLException("L'utilisateur " + userId + " est déjà membre de ce club.");
         }
@@ -48,42 +45,32 @@ public class ClubController {
             throw new SQLException("Le club a atteint sa capacité maximale (" + maxCapacity + ").");
         }
 
-        clubDAO.addMemberToClub(clubId, userId);
+        clubDAO.addMemberToClub(clubId, userId, roleInClub);
         return true;
     }
 
-    /**
-     * Demande d'adhésion par le MEMBRE (Nouvelle logique UC 7)
-     */
-    public void requestToJoinClub(int clubId, String userId) throws SQLException {
+
+    public void requestToJoinClub(int clubId, String userId, String roleInClub) throws SQLException {
         if (clubDAO.isMember(clubId, userId)) {
             throw new SQLException("Vous êtes déjà membre de ce club !");
         }
         if (clubDAO.hasPendingRequest(clubId, userId)) {
             throw new SQLException("Vous avez déjà une demande en cours de traitement pour ce club.");
         }
-        clubDAO.createMembershipRequest(clubId, userId);
+        clubDAO.createMembershipRequest(clubId, userId, roleInClub);
     }
 
-    // --- MÉTHODES POUR LE DIRECTEUR (UC 8) ---
 
-    /**
-     * Récupère TOUTES les demandes (utile pour l'Admin)
-     */
     public List<MembershipRequest> getPendingRequests() throws SQLException {
         return clubDAO.getPendingRequests();
     }
 
-    /**
-     * NOUVEAU : Récupère uniquement les demandes des clubs gérés par ce directeur
-     */
+
     public List<MembershipRequest> getRequestsForDirector(String directorId) throws SQLException {
         return clubDAO.getPendingRequestsByDirector(directorId);
     }
 
-    /**
-     * Approuve une demande et inscrit automatiquement le membre au club
-     */
+
     public void approveRequest(int requestId) throws SQLException {
         MembershipRequest request = clubDAO.getRequestById(requestId);
         if (request == null) {
@@ -98,17 +85,19 @@ public class ClubController {
         }
 
         clubDAO.updateRequestStatus(requestId, "APPROVED");
-        clubDAO.addMemberToClub(request.getClubId(), request.getUserId());
+        String roleInClub = request.getRoleInClub() == null ? "JOUEUR" : request.getRoleInClub();
+        clubDAO.addMemberToClub(request.getClubId(), request.getUserId(), roleInClub);
+        if ("COACH".equalsIgnoreCase(roleInClub)) {
+            PostgresUserDAO.getInstance().updateUserRole(request.getUserId(), "COACH");
+        }
     }
 
-    /**
-     * Refuse une demande
-     */
+
     public void rejectRequest(int requestId) throws SQLException {
         clubDAO.updateRequestStatus(requestId, "REJECTED");
     }
 
-    // --- AUTRES MÉTHODES ---
+
 
     public void updateClub(Club club) throws SQLException {
         clubDAO.updateClub(club);

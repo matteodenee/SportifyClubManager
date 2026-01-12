@@ -10,7 +10,7 @@ public class MatchFacade {
     private final MatchManager matchManager;
 
     private MatchFacade() {
-        // On récupère l'instance du manager située dans ton dossier services
+
         this.matchManager = MatchManager.getInstance();
     }
 
