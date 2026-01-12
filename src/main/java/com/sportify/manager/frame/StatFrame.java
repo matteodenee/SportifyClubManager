@@ -103,17 +103,27 @@ public class StatFrame {
 
         matchTable = new TableView<>();
         setupMatchTable();
+        matchTable.setPrefHeight(180);
+        matchTable.setMaxHeight(220);
+        ScrollPane matchScroll = new ScrollPane(matchTable);
+        matchScroll.setFitToWidth(true);
+        matchScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        matchScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         matchTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> loadMatchEvents(newVal));
 
         matchEventSummary = new Label();
         matchEventSummary.setStyle("-fx-text-fill: #7f8c8d;");
         matchEventList = new ListView<>();
-        matchEventList.setPrefHeight(180);
+        matchEventList.setPrefHeight(220);
         matchEventList.setPlaceholder(new Label("Sélectionnez un match"));
 
-        VBox centerBox = new VBox(12, pieChart, new Label("Matchs terminés"), matchTable, new Label("Évènements du match"), matchEventSummary, matchEventList);
-        VBox.setVgrow(matchTable, Priority.ALWAYS);
-        mainLayout.setCenter(centerBox);
+        VBox centerBox = new VBox(12, pieChart, new Label("Matchs terminés"), matchScroll, new Label("Évènements du match"), matchEventSummary, matchEventList);
+        VBox.setVgrow(matchTable, Priority.SOMETIMES);
+        VBox.setVgrow(matchEventList, Priority.ALWAYS);
+        ScrollPane centerScroll = new ScrollPane(centerBox);
+        centerScroll.setFitToWidth(true);
+        centerScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        mainLayout.setCenter(centerScroll);
 
         // --- RIGHT : KPI (Ratios du flux 9.2.1) ---
         kpiContainer = new VBox(15);
@@ -135,7 +145,7 @@ public class StatFrame {
         // Chargement initial
         updateDashboard(periodCombo.getValue());
 
-        Scene scene = new Scene(mainLayout, 900, 600);
+        Scene scene = new Scene(mainLayout, 1100, 760);
         stage.setTitle("Tableau de Bord Statistique - Sportify");
         stage.setScene(scene);
         stage.show();

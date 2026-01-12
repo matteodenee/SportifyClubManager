@@ -1,6 +1,6 @@
----------------------------------------------------------
--- NETTOYAGE (Ordre respectant les contraintes)
----------------------------------------------------------
+
+-- NETTOYAGE
+
 DROP TABLE IF EXISTS team_member CASCADE;
 DROP TABLE IF EXISTS team CASCADE;
 DROP TABLE IF EXISTS match_composition CASCADE;
@@ -331,7 +331,30 @@ INSERT INTO users (id, password, name, email, role) VALUES
                                                         ('user12', 'user123', 'Leo Martin', 'leo@gmail.com', 'MEMBER'),
                                                         ('user13', 'user123', 'Maya Colin', 'maya@gmail.com', 'MEMBER'),
                                                         ('user14', 'user123', 'Nabil Hamdi', 'nabil@gmail.com', 'MEMBER'),
-                                                        ('user15', 'user123', 'Olivia Roy', 'olivia@gmail.com', 'MEMBER');
+                                                        ('user15', 'user123', 'Olivia Roy', 'olivia@gmail.com', 'MEMBER'),
+                                                        ('user16', 'user123', 'Pauline Leroy', 'pauline@gmail.com', 'MEMBER'),
+                                                        ('user17', 'user123', 'Karim Diallo', 'karim@gmail.com', 'MEMBER'),
+                                                        ('user18', 'user123', 'Nora Bensaid', 'nora@gmail.com', 'MEMBER'),
+                                                        ('user19', 'user123', 'Lucie Fontana', 'lucie@gmail.com', 'MEMBER'),
+                                                        ('user20', 'user123', 'Yanis Perrot', 'yanis@gmail.com', 'MEMBER'),
+                                                        ('user21', 'user123', 'Rayan Lopez', 'rayan@gmail.com', 'MEMBER'),
+                                                        ('user22', 'user123', 'Sara Ivanov', 'sara@gmail.com', 'MEMBER'),
+                                                        ('user23', 'user123', 'Kevin Moreau', 'kevin@gmail.com', 'MEMBER'),
+                                                        ('user24', 'user123', 'Nina Lopes', 'nina.lopes@gmail.com', 'MEMBER'),
+                                                        ('user25', 'user123', 'Adam Pereira', 'adam@gmail.com', 'MEMBER'),
+                                                        ('user26', 'user123', 'Lina Costa', 'lina@gmail.com', 'MEMBER'),
+                                                        ('user27', 'user123', 'Hassan Diallo', 'hassan@gmail.com', 'MEMBER'),
+                                                        ('user28', 'user123', 'Julie Marchand', 'julie@gmail.com', 'MEMBER'),
+                                                        ('user29', 'user123', 'Karim Bensaid', 'karim.bensaid@gmail.com', 'MEMBER'),
+                                                        ('user30', 'user123', 'Eva Laurent', 'eva@gmail.com', 'MEMBER'),
+                                                        ('user31', 'user123', 'Mehdi Renaud', 'mehdi@gmail.com', 'MEMBER'),
+                                                        ('user32', 'user123', 'Laura Petit', 'laura@gmail.com', 'MEMBER'),
+                                                        ('user33', 'user123', 'Ismael Benyahia', 'ismael@gmail.com', 'MEMBER'),
+                                                        ('user34', 'user123', 'Camille Fabre', 'camille@gmail.com', 'MEMBER'),
+                                                        ('user35', 'user123', 'Nicolas Vasseur', 'nicolas@gmail.com', 'MEMBER'),
+                                                        ('user36', 'user123', 'Amira Saidi', 'amira@gmail.com', 'MEMBER'),
+                                                        ('user37', 'user123', 'Louis Martel', 'louis@gmail.com', 'MEMBER'),
+                                                        ('user38', 'user123', 'Salma Ait', 'salma@gmail.com', 'MEMBER');
 
 -- 2. Types de Sports
 INSERT INTO type_sports (nom, description, nb_joueurs) VALUES
@@ -425,54 +448,104 @@ INSERT INTO members (userid, clubid, role_in_club) VALUES
                                                        ('user1', 1, 'JOUEUR'),
                                                        ('user2', 1, 'JOUEUR'),
                                                        ('user3', 1, 'JOUEUR'),
+                                                       ('user16', 1, 'JOUEUR'),
+                                                       ('user17', 1, 'JOUEUR'),
+                                                       ('user18', 1, 'JOUEUR'),
+                                                       ('user19', 1, 'JOUEUR'),
+                                                       ('user20', 1, 'JOUEUR'),
+                                                       ('user33', 1, 'JOUEUR'),
+                                                       ('user34', 1, 'JOUEUR'),
                                                        ('user4', 2, 'JOUEUR'),
                                                        ('user5', 2, 'JOUEUR'),
                                                        ('user6', 2, 'JOUEUR'),
+                                                       ('user21', 2, 'JOUEUR'),
+                                                       ('user23', 2, 'JOUEUR'),
+                                                       ('user24', 2, 'JOUEUR'),
                                                        ('user7', 3, 'JOUEUR'),
                                                        ('user8', 3, 'JOUEUR'),
+                                                       ('user22', 3, 'JOUEUR'),
+                                                       ('user25', 3, 'JOUEUR'),
+                                                       ('user26', 3, 'JOUEUR'),
                                                        ('user9', 4, 'JOUEUR'),
                                                        ('user10', 4, 'JOUEUR'),
+                                                       ('user27', 4, 'JOUEUR'),
+                                                       ('user28', 4, 'JOUEUR'),
                                                        ('user11', 6, 'JOUEUR'),
                                                        ('user12', 6, 'JOUEUR'),
+                                                       ('user29', 6, 'JOUEUR'),
+                                                       ('user31', 6, 'JOUEUR'),
                                                        ('user13', 5, 'JOUEUR'),
                                                        ('user14', 5, 'JOUEUR'),
-                                                       ('user15', 3, 'JOUEUR');
+                                                       ('user15', 3, 'JOUEUR'),
+                                                       ('user30', 5, 'JOUEUR'),
+                                                       ('user32', 5, 'JOUEUR');
 
 -- 4.1 Equipes
 INSERT INTO team (nom, categorie, clubid, coach_id, type_sport_id) VALUES
-                                                                        ('Equipe A', 'Senior', 1, 'coach_zidane', 1),
-                                                                        ('Equipe B', 'U18', 1, NULL, 1),
-                                                                        ('Rugby Seniors', 'Senior', 2, 'coach_marie', 2),
-                                                                        ('Basket Pro', 'Senior', 3, 'coach_tony', 3),
-                                                                        ('Handball A', 'Senior', 4, 'coach_sarah', 4),
-                                                                        ('Volley Mixte', 'Senior', 6, 'coach_paul', 6),
-                                                                        ('Tennis Loisirs', 'Senior', 5, NULL, 5);
+                                                                        ('Olympique Sportify A', 'Senior', 1, 'coach_zidane', 1),
+                                                                        ('Olympique Sportify U18', 'U18', 1, NULL, 1),
+                                                                        ('Erben Rugby Seniors', 'Senior', 2, 'coach_marie', 2),
+                                                                        ('Basket City Pro', 'Senior', 3, 'coach_tony', 3),
+                                                                        ('Handball United A', 'Senior', 4, 'coach_sarah', 4),
+                                                                        ('Volley Stars A', 'Senior', 6, 'coach_paul', 6),
+                                                                        ('Tennis Academy 1', 'Senior', 5, NULL, 5),
+                                                                        ('Erben Rugby U20', 'U20', 2, NULL, 2),
+                                                                        ('Basket City U18', 'U18', 3, NULL, 3),
+                                                                        ('Handball United B', 'U18', 4, NULL, 4),
+                                                                        ('Volley Stars B', 'U18', 6, NULL, 6),
+                                                                        ('Tennis Academy 2', 'Senior', 5, NULL, 5),
+                                                                        ('Olympique Sportify B', 'Senior', 1, NULL, 1);
 
 -- 4.2 Membres d'equipe
 INSERT INTO team_member (id_team, id_user) VALUES
                                                (1, 'user1'),
                                                (1, 'user2'),
                                                (1, 'user3'),
-                                               (2, 'user8'),
-                                               (2, 'user10'),
+                                               (1, 'user16'),
+                                               (1, 'user17'),
+                                               (2, 'user18'),
+                                               (2, 'user19'),
+                                               (2, 'user33'),
+                                               (13, 'user20'),
+                                               (13, 'user34'),
                                                (3, 'user4'),
                                                (3, 'user5'),
                                                (3, 'user6'),
+                                               (3, 'user21'),
+                                               (8, 'user23'),
+                                               (8, 'user24'),
                                                (4, 'user7'),
                                                (4, 'user15'),
+                                               (4, 'user22'),
+                                               (4, 'user8'),
+                                               (9, 'user25'),
+                                               (9, 'user26'),
                                                (5, 'user9'),
                                                (5, 'user10'),
+                                               (10, 'user27'),
+                                               (10, 'user28'),
                                                (6, 'user11'),
-                                               (6, 'user12');
+                                               (6, 'user12'),
+                                               (11, 'user29'),
+                                               (11, 'user31'),
+                                               (7, 'user13'),
+                                               (7, 'user14'),
+                                               (12, 'user30'),
+                                               (12, 'user32');
 
 -- 4.3 Entrainements
 INSERT INTO entrainements (date, heure, lieu, activite, clubid, team_id) VALUES
                                                                             ('2025-10-02', '18:00', 'Stade Sportify', 'Footing', 1, 1),
                                                                             ('2025-10-04', '19:30', 'Stade Sportify', 'Tactique', 1, 1),
+                                                                            ('2025-10-05', '18:30', 'Stade Sportify', 'Physique', 1, 13),
                                                                             ('2025-10-03', '17:00', 'Rugby Park', 'Contact', 2, 3),
+                                                                            ('2025-10-06', '17:30', 'Rugby Park', 'Plaquages', 2, 8),
                                                                             ('2025-10-06', '18:30', 'Arena Basket', 'Shoot', 3, 4),
+                                                                            ('2025-10-09', '19:00', 'Arena Basket', 'Collectif', 3, 9),
                                                                             ('2025-10-07', '20:00', 'Gymnase Central', 'Defense', 4, 5),
+                                                                            ('2025-10-11', '19:30', 'Gymnase Central', 'Transition', 4, 10),
                                                                             ('2025-10-08', '09:00', 'Courts Municipaux', 'Service', 5, 7),
+                                                                            ('2025-10-13', '10:00', 'Courts Municipaux', 'Jeu de fond', 5, 12),
                                                                             ('2025-10-09', '18:30', 'Stade Sportify', 'Jeu réduit', 1, 2);
 
 -- 4.4 Participation entrainements
@@ -486,108 +559,132 @@ INSERT INTO entrainement_participation (entrainement_id, user_id, status) VALUES
 INSERT INTO events (nom, description, date_debut, duree_minutes, lieu, type, club_id, createur_id) VALUES
                                                                                                       ('Reunion d equipe', 'Point hebdo et planning', '2025-10-02 19:00:00', 60, 'Club House', 'MEETING', 1, 'dir_foot'),
                                                                                                       ('Soiree club', 'Evenement convivial', '2025-10-12 20:30:00', 120, 'Salle polyvalente', 'SOCIAL', 2, 'dir_rugby'),
-                                                                                                      ('Tournoi interne', 'Mini-tournoi membres', '2025-10-20 10:00:00', 240, 'Gymnase Central', 'TOURNAMENT', 4, 'coach_sarah');
+                                                                                                      ('Tournoi interne', 'Mini-tournoi membres', '2025-10-20 10:00:00', 240, 'Gymnase Central', 'TOURNAMENT', 4, 'coach_sarah'),
+                                                                                                      ('Stage technique', 'Atelier sur les fondamentaux', '2025-10-18 14:00:00', 180, 'Stade Sportify', 'WORKSHOP', 1, 'coach_zidane'),
+                                                                                                      ('Match amical', 'Rencontre entre equipes du club', '2025-10-25 16:00:00', 90, 'Rugby Park', 'FRIENDLY', 2, 'coach_marie'),
+                                                                                                      ('Journee portes ouvertes', 'Presentation du club', '2025-10-30 15:00:00', 120, 'Arena Basket', 'SOCIAL', 3, 'dir_basket');
 
 -- 4.6 Participation aux evenements
 INSERT INTO event_participation (event_id, user_id, status) VALUES
                                                                 (1, 'user1', 'GOING'),
                                                                 (1, 'user2', 'MAYBE'),
                                                                 (2, 'user4', 'GOING'),
-                                                                (3, 'user9', 'NOT_GOING');
+                                                                (3, 'user9', 'NOT_GOING'),
+                                                                (4, 'user16', 'GOING'),
+                                                                (4, 'user17', 'GOING'),
+                                                                (5, 'user5', 'MAYBE'),
+                                                                (6, 'user7', 'GOING');
 
 -- 4.7 Types d'equipement
 INSERT INTO equipment_types (name, description) VALUES
                                                     ('Ballon', 'Ballons officiels'),
                                                     ('Maillot', 'Tenues de match'),
-                                                    ('Cones', 'Plots d entrainement');
+                                                    ('Cones', 'Plots d entrainement'),
+                                                    ('Raquette', 'Raquettes de sport'),
+                                                    ('Filet', 'Filets officiels');
 
 -- 4.8 Equipements
 INSERT INTO equipments (name, type, condition, quantity, type_id, club_id) VALUES
                                                                               ('Ballon #1', 'Ballon', 'Neuf', 10, 1, 1),
                                                                               ('Ballon #2', 'Ballon', 'Bon', 8, 1, 1),
                                                                               ('Maillot domicile', 'Maillot', 'Bon', 25, 2, 1),
-                                                                              ('Cones lot A', 'Cones', 'Use', 50, 3, 2);
+                                                                              ('Cones lot A', 'Cones', 'Use', 50, 3, 2),
+                                                                              ('Ballon rugby', 'Ballon', 'Bon', 12, 1, 2),
+                                                                              ('Maillot rugby', 'Maillot', 'Bon', 20, 2, 2),
+                                                                              ('Ballon basket', 'Ballon', 'Neuf', 15, 1, 3),
+                                                                              ('Chasubles basket', 'Maillot', 'Bon', 18, 2, 3),
+                                                                              ('Ballon handball', 'Ballon', 'Bon', 10, 1, 4),
+                                                                              ('Filet volley', 'Filet', 'Bon', 4, 5, 6),
+                                                                              ('Raquette tennis', 'Raquette', 'Bon', 14, 4, 5);
 
 -- 4.9 Reservations d'equipements
 INSERT INTO equipment_reservations (equipment_id, user_id, start_date, end_date, status) VALUES
                                                                                             (1, 'user1', '2025-10-05', '2025-10-06', 'APPROVED'),
-                                                                                            (2, 'user2', '2025-10-10', '2025-10-12', 'PENDING');
+                                                                                            (2, 'user2', '2025-10-10', '2025-10-12', 'PENDING'),
+                                                                                            (5, 'coach_marie', '2025-10-07', '2025-10-09', 'APPROVED'),
+                                                                                            (7, 'coach_tony', '2025-10-08', '2025-10-08', 'APPROVED'),
+                                                                                            (9, 'coach_sarah', '2025-10-09', '2025-10-10', 'PENDING'),
+                                                                                            (10, 'coach_paul', '2025-10-11', '2025-10-12', 'APPROVED'),
+                                                                                            (11, 'user13', '2025-10-14', '2025-10-15', 'PENDING');
 
--- 5. MATCHS DE TEST (Pour ton nouveau MatchController)
+INSERT INTO membership_requests (clubid, userid, status, role_in_club) VALUES
+                                                                           (1, 'user35', 'APPROVED', 'JOUEUR'),
+                                                                           (1, 'user36', 'PENDING', 'JOUEUR'),
+                                                                           (2, 'user37', 'APPROVED', 'JOUEUR'),
+                                                                           (3, 'user38', 'PENDING', 'JOUEUR');
+
+-- 5. MATCHS DE TEST
 INSERT INTO matchs (type_sport_id, home_team_id, away_team_id, datetime, location, referee, status) VALUES
-                                                                                                        (1, 1, 2, '2025-06-15 20:45:00', 'Stade de France', 'M. Turpin', 'SCHEDULED'),
-                                                                                                        (1, 1, 2, '2025-07-20 18:00:00', 'Parc des Princes', 'Mme Frappart', 'SCHEDULED'),
-                                                                                                        (3, 4, 1, '2025-08-10 19:30:00', 'Arena Sportify', 'M. Lemoine', 'SCHEDULED'),
-                                                                                                        (4, 5, 4, '2025-08-22 20:00:00', 'Gymnase Central', 'Mme Durant', 'SCHEDULED'),
-                                                                                                        (6, 6, 1, '2025-09-05 21:00:00', 'Volley Dome', 'M. Perez', 'SCHEDULED'),
-                                                                                                        (5, 7, 2, '2025-09-12 10:00:00', 'Courts Municipaux', 'Mme Gomez', 'SCHEDULED');
+                                                                                                        (1, 1, 2, '2025-06-15 20:45:00', 'Stade Sportify', 'M. Turpin', 'SCHEDULED'),
+                                                                                                        (2, 3, 8, '2025-07-20 18:00:00', 'Rugby Park', 'Mme Frappart', 'SCHEDULED'),
+                                                                                                        (3, 4, 9, '2025-08-10 19:30:00', 'Arena Basket', 'M. Lemoine', 'SCHEDULED'),
+                                                                                                        (4, 5, 10, '2025-08-22 20:00:00', 'Gymnase Central', 'Mme Durant', 'SCHEDULED'),
+                                                                                                        (6, 6, 11, '2025-09-05 21:00:00', 'Volley Dome', 'M. Perez', 'SCHEDULED'),
+                                                                                                        (5, 7, 12, '2025-09-12 10:00:00', 'Courts Municipaux', 'Mme Gomez', 'SCHEDULED');
 
--- 5.0 MATCHS TERMINES (Club 1)
+-- 5.0 MATCHS TERMINES (
 INSERT INTO matchs (type_sport_id, home_team_id, away_team_id, datetime, location, referee, status, home_score, away_score) VALUES
                                                                                                                                 (1, 1, 2, '2025-01-12 18:00:00', 'Stade Sportify', 'M. Durand', 'FINISHED', 2, 1),
-                                                                                                                                (1, 1, 3, '2025-02-02 20:30:00', 'Stade Sportify', 'S. Martin', 'FINISHED', 3, 0),
-                                                                                                                                (1, 4, 1, '2025-02-18 17:00:00', 'Gymnase Central', 'C. Petit', 'FINISHED', 1, 1),
-                                                                                                                                (1, 1, 5, '2025-03-03 19:00:00', 'Stade Sportify', 'J. Noel', 'FINISHED', 0, 2),
-                                                                                                                                (1, 6, 1, '2025-03-21 20:00:00', 'Salle Volley', 'L. Henry', 'FINISHED', 1, 4),
-                                                                                                                                (1, 1, 4, '2025-04-07 18:30:00', 'Stade Sportify', 'P. Lemoine', 'FINISHED', 2, 2),
-                                                                                                                                (1, 2, 1, '2025-04-19 21:00:00', 'Stade Rugby', 'R. Garcia', 'FINISHED', 0, 1),
-                                                                                                                                (1, 1, 6, '2025-05-05 18:00:00', 'Stade Sportify', 'A. Simon', 'FINISHED', 4, 3),
-                                                                                                                                (1, 3, 1, '2025-05-24 19:45:00', 'Arena Basket', 'V. Roux', 'FINISHED', 1, 2),
-                                                                                                                                (1, 1, 2, '2025-06-02 16:00:00', 'Stade Sportify', 'N. Morel', 'FINISHED', 3, 1);
+                                                                                                                                (1, 1, 13, '2025-02-02 20:30:00', 'Stade Sportify', 'S. Martin', 'FINISHED', 3, 0),
+                                                                                                                                (1, 2, 13, '2025-02-18 17:00:00', 'Stade Sportify', 'C. Petit', 'FINISHED', 1, 1),
+                                                                                                                                (1, 13, 1, '2025-03-03 19:00:00', 'Stade Sportify', 'J. Noel', 'FINISHED', 0, 2),
+                                                                                                                                (2, 3, 8, '2025-03-21 20:00:00', 'Rugby Park', 'L. Henry', 'FINISHED', 18, 12),
+                                                                                                                                (2, 8, 3, '2025-04-07 18:30:00', 'Rugby Park', 'P. Lemoine', 'FINISHED', 9, 15),
+                                                                                                                                (3, 4, 9, '2025-04-19 21:00:00', 'Arena Basket', 'R. Garcia', 'FINISHED', 78, 70),
+                                                                                                                                (3, 9, 4, '2025-05-05 18:00:00', 'Arena Basket', 'A. Simon', 'FINISHED', 64, 80),
+                                                                                                                                (4, 5, 10, '2025-05-24 19:45:00', 'Gymnase Central', 'V. Roux', 'FINISHED', 28, 26),
+                                                                                                                                (6, 6, 11, '2025-06-02 16:00:00', 'Volley Dome', 'N. Morel', 'FINISHED', 3, 1);
 
 INSERT INTO small_events (type, description, team_id, player_id, period, event_date, match_id) VALUES
                                                                                                   ('GOAL', 'But marque', 1, 'user1', 'Saison 2025', '2025-01-12 18:00:00', 7),
                                                                                                   ('GOAL', 'But marque', 1, 'user2', 'Saison 2025', '2025-01-12 18:00:00', 7),
-                                                                                                  ('GOAL', 'But marque', 2, 'user8', 'Saison 2025', '2025-01-12 18:00:00', 7),
-                                                                                                  ('YELLOW_CARD', 'Carton jaune', 1, 'user3', 'Saison 2025', '2025-01-12 18:00:00', 7),
+                                                                                                  ('GOAL', 'But marque', 2, 'user18', 'Saison 2025', '2025-01-12 18:00:00', 7),
+                                                                                                  ('YELLOW_CARD', 'Carton jaune', 2, 'user19', 'Saison 2025', '2025-01-12 18:00:00', 7),
                                                                                                   ('GOAL', 'But marque', 1, 'user1', 'Saison 2025', '2025-02-02 20:30:00', 8),
-                                                                                                  ('GOAL', 'But marque', 1, 'user2', 'Saison 2025', '2025-02-02 20:30:00', 8),
-                                                                                                  ('GOAL', 'But marque', 1, 'user3', 'Saison 2025', '2025-02-02 20:30:00', 8),
-                                                                                                  ('CORNER', 'Corner', 1, 'user2', 'Saison 2025', '2025-02-02 20:30:00', 8),
-                                                                                                  ('YELLOW_CARD', 'Carton jaune', 3, 'user4', 'Saison 2025', '2025-02-02 20:30:00', 8),
-                                                                                                  ('GOAL', 'But marque', 4, 'user7', 'Saison 2025', '2025-02-18 17:00:00', 9),
-                                                                                                  ('GOAL', 'But marque', 1, 'user1', 'Saison 2025', '2025-02-18 17:00:00', 9),
-                                                                                                  ('RED_CARD', 'Carton rouge', 4, 'user15', 'Saison 2025', '2025-02-18 17:00:00', 9),
-                                                                                                  ('GOAL', 'But marque', 5, 'user9', 'Saison 2025', '2025-03-03 19:00:00', 10),
-                                                                                                  ('GOAL', 'But marque', 5, 'user10', 'Saison 2025', '2025-03-03 19:00:00', 10),
-                                                                                                  ('YELLOW_CARD', 'Carton jaune', 1, 'user2', 'Saison 2025', '2025-03-03 19:00:00', 10),
-                                                                                                  ('GOAL', 'But marque', 6, 'user11', 'Saison 2025', '2025-03-21 20:00:00', 11),
-                                                                                                  ('GOAL', 'But marque', 1, 'user1', 'Saison 2025', '2025-03-21 20:00:00', 11),
-                                                                                                  ('GOAL', 'But marque', 1, 'user2', 'Saison 2025', '2025-03-21 20:00:00', 11),
-                                                                                                  ('GOAL', 'But marque', 1, 'user3', 'Saison 2025', '2025-03-21 20:00:00', 11),
-                                                                                                  ('GOAL', 'But marque', 1, 'user1', 'Saison 2025', '2025-03-21 20:00:00', 11),
-                                                                                                  ('YELLOW_CARD', 'Carton jaune', 6, 'user12', 'Saison 2025', '2025-03-21 20:00:00', 11),
-                                                                                                  ('GOAL', 'But marque', 1, 'user2', 'Saison 2025', '2025-04-07 18:30:00', 12),
-                                                                                                  ('GOAL', 'But marque', 1, 'user3', 'Saison 2025', '2025-04-07 18:30:00', 12),
-                                                                                                  ('GOAL', 'But marque', 4, 'user7', 'Saison 2025', '2025-04-07 18:30:00', 12),
-                                                                                                  ('GOAL', 'But marque', 4, 'user15', 'Saison 2025', '2025-04-07 18:30:00', 12),
-                                                                                                  ('CORNER', 'Corner', 1, 'user1', 'Saison 2025', '2025-04-07 18:30:00', 12),
-                                                                                                  ('GOAL', 'But marque', 1, 'user2', 'Saison 2025', '2025-04-19 21:00:00', 13),
-                                                                                                  ('RED_CARD', 'Carton rouge', 2, 'user8', 'Saison 2025', '2025-04-19 21:00:00', 13),
-                                                                                                  ('GOAL', 'But marque', 1, 'user1', 'Saison 2025', '2025-05-05 18:00:00', 14),
-                                                                                                  ('GOAL', 'But marque', 1, 'user2', 'Saison 2025', '2025-05-05 18:00:00', 14),
-                                                                                                  ('GOAL', 'But marque', 1, 'user3', 'Saison 2025', '2025-05-05 18:00:00', 14),
-                                                                                                  ('GOAL', 'But marque', 1, 'user1', 'Saison 2025', '2025-05-05 18:00:00', 14),
-                                                                                                  ('GOAL', 'But marque', 6, 'user11', 'Saison 2025', '2025-05-05 18:00:00', 14),
-                                                                                                  ('GOAL', 'But marque', 6, 'user12', 'Saison 2025', '2025-05-05 18:00:00', 14),
-                                                                                                  ('GOAL', 'But marque', 6, 'user11', 'Saison 2025', '2025-05-05 18:00:00', 14),
-                                                                                                  ('YELLOW_CARD', 'Carton jaune', 1, 'user2', 'Saison 2025', '2025-05-05 18:00:00', 14),
-                                                                                                  ('GOAL', 'But marque', 3, 'user4', 'Saison 2025', '2025-05-24 19:45:00', 15),
-                                                                                                  ('GOAL', 'But marque', 1, 'user1', 'Saison 2025', '2025-05-24 19:45:00', 15),
-                                                                                                  ('GOAL', 'But marque', 1, 'user2', 'Saison 2025', '2025-05-24 19:45:00', 15),
-                                                                                                  ('CORNER', 'Corner', 1, 'user3', 'Saison 2025', '2025-05-24 19:45:00', 15),
-                                                                                                  ('GOAL', 'But marque', 1, 'user1', 'Saison 2025', '2025-06-02 16:00:00', 16),
-                                                                                                  ('GOAL', 'But marque', 1, 'user2', 'Saison 2025', '2025-06-02 16:00:00', 16),
-                                                                                                  ('GOAL', 'But marque', 1, 'user3', 'Saison 2025', '2025-06-02 16:00:00', 16),
-                                                                                                  ('GOAL', 'But marque', 2, 'user8', 'Saison 2025', '2025-06-02 16:00:00', 16),
-                                                                                                  ('YELLOW_CARD', 'Carton jaune', 2, 'user10', 'Saison 2025', '2025-06-02 16:00:00', 16);
+                                                                                                  ('GOAL', 'But marque', 1, 'user16', 'Saison 2025', '2025-02-02 20:30:00', 8),
+                                                                                                  ('GOAL', 'But marque', 1, 'user17', 'Saison 2025', '2025-02-02 20:30:00', 8),
+                                                                                                  ('YELLOW_CARD', 'Carton jaune', 13, 'user20', 'Saison 2025', '2025-02-02 20:30:00', 8),
+                                                                                                  ('GOAL', 'But marque', 2, 'user18', 'Saison 2025', '2025-02-18 17:00:00', 9),
+                                                                                                  ('GOAL', 'But marque', 13, 'user20', 'Saison 2025', '2025-02-18 17:00:00', 9),
+                                                                                                  ('CORNER', 'Corner', 2, 'user19', 'Saison 2025', '2025-02-18 17:00:00', 9),
+                                                                                                  ('GOAL', 'But marque', 1, 'user2', 'Saison 2025', '2025-03-03 19:00:00', 10),
+                                                                                                  ('GOAL', 'But marque', 1, 'user3', 'Saison 2025', '2025-03-03 19:00:00', 10),
+                                                                                                  ('YELLOW_CARD', 'Carton jaune', 13, 'user20', 'Saison 2025', '2025-03-03 19:00:00', 10),
+                                                                                                  ('TRY', 'Essai', 3, 'user4', 'Saison 2025', '2025-03-21 20:00:00', 11),
+                                                                                                  ('TRY', 'Essai', 3, 'user5', 'Saison 2025', '2025-03-21 20:00:00', 11),
+                                                                                                  ('TRY', 'Essai', 3, 'user6', 'Saison 2025', '2025-03-21 20:00:00', 11),
+                                                                                                  ('TRY', 'Essai', 8, 'user23', 'Saison 2025', '2025-03-21 20:00:00', 11),
+                                                                                                  ('TRY', 'Essai', 8, 'user24', 'Saison 2025', '2025-03-21 20:00:00', 11),
+                                                                                                  ('YELLOW_CARD', 'Carton jaune', 8, 'user23', 'Saison 2025', '2025-03-21 20:00:00', 11),
+                                                                                                  ('TRY', 'Essai', 8, 'user24', 'Saison 2025', '2025-04-07 18:30:00', 12),
+                                                                                                  ('TRY', 'Essai', 8, 'user23', 'Saison 2025', '2025-04-07 18:30:00', 12),
+                                                                                                  ('TRY', 'Essai', 3, 'user4', 'Saison 2025', '2025-04-07 18:30:00', 12),
+                                                                                                  ('TRY', 'Essai', 3, 'user6', 'Saison 2025', '2025-04-07 18:30:00', 12),
+                                                                                                  ('RED_CARD', 'Carton rouge', 3, 'user5', 'Saison 2025', '2025-04-07 18:30:00', 12),
+                                                                                                  ('POINT', 'Point marque', 4, 'user7', 'Saison 2025', '2025-04-19 21:00:00', 13),
+                                                                                                  ('POINT', 'Point marque', 4, 'user22', 'Saison 2025', '2025-04-19 21:00:00', 13),
+                                                                                                  ('POINT', 'Point marque', 4, 'user15', 'Saison 2025', '2025-04-19 21:00:00', 13),
+                                                                                                  ('POINT', 'Point marque', 9, 'user25', 'Saison 2025', '2025-04-19 21:00:00', 13),
+                                                                                                  ('POINT', 'Point marque', 9, 'user26', 'Saison 2025', '2025-04-19 21:00:00', 13),
+                                                                                                  ('POINT', 'Point marque', 9, 'user25', 'Saison 2025', '2025-05-05 18:00:00', 14),
+                                                                                                  ('POINT', 'Point marque', 9, 'user26', 'Saison 2025', '2025-05-05 18:00:00', 14),
+                                                                                                  ('POINT', 'Point marque', 4, 'user15', 'Saison 2025', '2025-05-05 18:00:00', 14),
+                                                                                                  ('POINT', 'Point marque', 4, 'user22', 'Saison 2025', '2025-05-05 18:00:00', 14),
+                                                                                                  ('GOAL', 'But marque', 5, 'user9', 'Saison 2025', '2025-05-24 19:45:00', 15),
+                                                                                                  ('GOAL', 'But marque', 5, 'user10', 'Saison 2025', '2025-05-24 19:45:00', 15),
+                                                                                                  ('GOAL', 'But marque', 10, 'user27', 'Saison 2025', '2025-05-24 19:45:00', 15),
+                                                                                                  ('GOAL', 'But marque', 10, 'user28', 'Saison 2025', '2025-05-24 19:45:00', 15),
+                                                                                                  ('POINT', 'Point marque', 6, 'user11', 'Saison 2025', '2025-06-02 16:00:00', 16),
+                                                                                                  ('POINT', 'Point marque', 6, 'user12', 'Saison 2025', '2025-06-02 16:00:00', 16),
+                                                                                                  ('POINT', 'Point marque', 6, 'user11', 'Saison 2025', '2025-06-02 16:00:00', 16),
+                                                                                                  ('POINT', 'Point marque', 11, 'user29', 'Saison 2025', '2025-06-02 16:00:00', 16);
 
 -- 5.1 DEMANDES DE MATCH (Coach -> Admin)
 INSERT INTO match_requests (requester_club_id, opponent_club_id, home_team_id, away_team_id, type_sport_id, requested_datetime, location, referee, requested_by, status) VALUES
-                                                                                                                                                                            (1, 3, 1, 4, 1, '2025-10-01 18:30:00', 'Stade Sportify', 'M. Roussel', 'coach_zidane', 'PENDING'),
-                                                                                                                                                                            (2, 1, 3, 1, 2, '2025-10-05 15:00:00', 'Rugby Park', 'Mme Klein', 'coach_marie', 'PENDING'),
-                                                                                                                                                                            (3, 4, 4, 5, 3, '2025-10-12 19:00:00', 'Arena Basket', 'M. Silva', 'coach_tony', 'PENDING'),
-                                                                                                                                                                            (6, 3, 6, 4, 6, '2025-10-20 20:30:00', 'Volley Dome', 'Mme Leroy', 'coach_paul', 'PENDING');
+                                                                                                                                                                            (1, 1, 1, 13, 1, '2025-10-01 18:30:00', 'Stade Sportify', 'M. Roussel', 'coach_zidane', 'PENDING'),
+                                                                                                                                                                            (2, 2, 3, 8, 2, '2025-10-05 15:00:00', 'Rugby Park', 'Mme Klein', 'coach_marie', 'PENDING'),
+                                                                                                                                                                            (3, 3, 4, 9, 3, '2025-10-12 19:00:00', 'Arena Basket', 'M. Silva', 'coach_tony', 'PENDING'),
+                                                                                                                                                                            (6, 6, 6, 11, 6, '2025-10-20 20:30:00', 'Volley Dome', 'Mme Leroy', 'coach_paul', 'PENDING');
 
 -- 6. COMPOSITION DE TEST
 INSERT INTO match_composition (match_id, team_id, player_id, role, slot_index) VALUES
@@ -603,4 +700,27 @@ INSERT INTO licences (id, sport_id, type_licence, statut, membre_id) VALUES
                                                                          ('lic-005', 4, 'JOUEUR', 'EN_ATTENTE', 'user9'),
                                                                          ('lic-006', 6, 'JOUEUR', 'EN_ATTENTE', 'user11'),
                                                                          ('lic-007', 2, 'COACH', 'EN_ATTENTE', 'coach_marie'),
-                                                                         ('lic-008', 3, 'COACH', 'EN_ATTENTE', 'coach_tony');
+                                                                         ('lic-008', 3, 'COACH', 'EN_ATTENTE', 'coach_tony'),
+                                                                         ('lic-009', 1, 'JOUEUR', 'ACTIVE', 'user16'),
+                                                                         ('lic-010', 1, 'JOUEUR', 'ACTIVE', 'user17'),
+                                                                         ('lic-011', 1, 'JOUEUR', 'ACTIVE', 'user18'),
+                                                                         ('lic-012', 1, 'JOUEUR', 'ACTIVE', 'user19'),
+                                                                         ('lic-013', 1, 'JOUEUR', 'ACTIVE', 'user20'),
+                                                                         ('lic-014', 2, 'JOUEUR', 'ACTIVE', 'user21'),
+                                                                         ('lic-015', 3, 'JOUEUR', 'ACTIVE', 'user22'),
+                                                                         ('lic-016', 4, 'COACH', 'ACTIVE', 'coach_sarah'),
+                                                                         ('lic-017', 6, 'COACH', 'ACTIVE', 'coach_paul'),
+                                                                         ('lic-018', 3, 'JOUEUR', 'ACTIVE', 'user8'),
+                                                                         ('lic-019', 3, 'JOUEUR', 'ACTIVE', 'user15'),
+                                                                         ('lic-020', 2, 'JOUEUR', 'ACTIVE', 'user23'),
+                                                                         ('lic-021', 2, 'JOUEUR', 'ACTIVE', 'user24'),
+                                                                         ('lic-022', 3, 'JOUEUR', 'ACTIVE', 'user25'),
+                                                                         ('lic-023', 3, 'JOUEUR', 'ACTIVE', 'user26'),
+                                                                         ('lic-024', 4, 'JOUEUR', 'ACTIVE', 'user27'),
+                                                                         ('lic-025', 4, 'JOUEUR', 'ACTIVE', 'user28'),
+                                                                         ('lic-026', 6, 'JOUEUR', 'ACTIVE', 'user29'),
+                                                                         ('lic-027', 5, 'JOUEUR', 'ACTIVE', 'user30'),
+                                                                         ('lic-028', 6, 'JOUEUR', 'ACTIVE', 'user31'),
+                                                                         ('lic-029', 5, 'JOUEUR', 'ACTIVE', 'user32'),
+                                                                         ('lic-030', 1, 'JOUEUR', 'ACTIVE', 'user33'),
+                                                                         ('lic-031', 1, 'JOUEUR', 'ACTIVE', 'user34');

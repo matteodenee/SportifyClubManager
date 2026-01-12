@@ -559,6 +559,10 @@ public class MemberDashboardFrame extends Application {
             matches = matches.stream()
                     .filter(m -> m != null && (m.getHomeTeamId() == teamId || m.getAwayTeamId() == teamId))
                     .toList();
+            for (Match match : matches) {
+                int opponentId = match.getHomeTeamId() == teamId ? match.getAwayTeamId() : match.getHomeTeamId();
+                getMemberTeamName(opponentId);
+            }
         }
         matchTable.setItems(FXCollections.observableArrayList(matches == null ? List.of() : matches));
         matchMessageLabel.setText("");
@@ -587,7 +591,15 @@ public class MemberDashboardFrame extends Application {
 
     private String getMemberTeamName(int teamId) {
         String name = memberTeamNames.get(teamId);
-        return name != null ? name : ("ID " + teamId);
+        if (name != null) {
+            return name;
+        }
+        Team team = teamController.handleGetTeamById(teamId);
+        if (team != null && team.getNom() != null) {
+            memberTeamNames.put(teamId, team.getNom());
+            return team.getNom();
+        }
+        return "ID " + teamId;
     }
 
     private String getMatchOpponent(Match match) {

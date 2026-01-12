@@ -84,9 +84,7 @@ public class CoachDashboardFrame extends Application {
     private VBox teamManagementView;
     private TableView<Team> coachTeamTable;
     private TableView<User> coachTeamPlayersTable;
-    private TextField coachPlayerIdField;
-    private TextField playerSearchField;
-    private ListView<User> playerSearchResults;
+    private ComboBox<User> coachPlayerCombo;
     private Label teamStatsLabel;
 
     // Match View
@@ -358,6 +356,7 @@ public class CoachDashboardFrame extends Application {
         // Listener pour charger les joueurs
         coachTeamTable.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> {
             refreshCoachTeamPlayers(sel);
+            refreshEligiblePlayers(sel);
         });
 
         // === TABLE DES JOUEURS ===
@@ -378,28 +377,20 @@ public class CoachDashboardFrame extends Application {
         coachTeamPlayersTable.setPlaceholder(new Label("Sélectionnez une équipe"));
 
         // === ACTIONS JOUEURS ===
-        coachPlayerIdField = new TextField();
-        coachPlayerIdField.setPromptText("User ID");
-
-        Button addBtn = new Button("➕ Ajouter joueur");
-        addBtn.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold;");
-        addBtn.setOnAction(e -> handleCoachAddPlayer());
-
-        Button removeBtn = new Button("➖ Retirer joueur");
-        removeBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;");
-        removeBtn.setOnAction(e -> handleCoachRemovePlayer());
-
-        // === RECHERCHE JOUEUR ===
-        playerSearchField = new TextField();
-        playerSearchField.setPromptText("Rechercher par nom");
-
-        Button searchBtn = new Button("🔍 Rechercher");
-        searchBtn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;");
-        searchBtn.setOnAction(e -> handlePlayerSearch());
-
-        playerSearchResults = new ListView<>();
-        playerSearchResults.setPrefHeight(150);
-        playerSearchResults.setCellFactory(list -> new ListCell<>() {
+        coachPlayerCombo = new ComboBox<>();
+        coachPlayerCombo.setPromptText("Sélectionnez un joueur");
+        coachPlayerCombo.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(User item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName() + " (" + item.getId() + ")");
+                }
+            }
+        });
+        coachPlayerCombo.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(User item, boolean empty) {
                 super.updateItem(item, empty);
@@ -411,17 +402,16 @@ public class CoachDashboardFrame extends Application {
             }
         });
 
-        playerSearchResults.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> {
-            if (sel != null) {
-                coachPlayerIdField.setText(sel.getId());
-            }
-        });
+        Button addBtn = new Button("➕ Ajouter joueur");
+        addBtn.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold;");
+        addBtn.setOnAction(e -> handleCoachAddPlayer());
 
-        HBox playerActions = new HBox(10, coachPlayerIdField, addBtn, removeBtn);
+        Button removeBtn = new Button("➖ Retirer joueur");
+        removeBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;");
+        removeBtn.setOnAction(e -> handleCoachRemovePlayer());
+
+        HBox playerActions = new HBox(10, coachPlayerCombo, addBtn, removeBtn);
         playerActions.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-
-        HBox searchBox = new HBox(10, playerSearchField, searchBtn);
-        searchBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
 
         // === ASSEMBLY ===
         teamManagementView.getChildren().addAll(
@@ -433,11 +423,7 @@ public class CoachDashboardFrame extends Application {
                 new Separator(),
                 new Label("Joueurs de l'équipe sélectionnée"),
                 coachTeamPlayersTable,
-                playerActions,
-                new Separator(),
-                new Label("Rechercher un joueur dans le club"),
-                searchBox,
-                playerSearchResults
+                playerActions
         );
 
     }
@@ -512,6 +498,42 @@ public class CoachDashboardFrame extends Application {
         coachTeamPlayersTable.setItems(FXCollections.observableArrayList(players == null ? List.of() : players));
     }
 
+    private void refreshEligiblePlayers(Team team) {
+        if (team == null || coachClubId <= 0) {
+            coachPlayerCombo.setItems(FXCollections.observableArrayList());
+            return;
+        }
+        Integer sportId = team.getTypeSportId();
+        if (sportId == null || sportId <= 0) {
+            coachPlayerCombo.setItems(FXCollections.observableArrayList());
+            return;
+        }
+        List<User> members = PostgresUserDAO.getInstance().getMembersByClub(coachClubId);
+        List<User> current = teamController.handleGetPlayers(team.getId());
+        java.util.Set<String> existing = new java.util.HashSet<>();
+        if (current != null) {
+            for (User u : current) {
+                if (u != null && u.getId() != null) {
+                    existing.add(u.getId());
+                }
+            }
+        }
+        List<User> eligible = new java.util.ArrayList<>();
+        if (members != null) {
+            for (User u : members) {
+                if (u == null || u.getId() == null) continue;
+                if (!"MEMBER".equalsIgnoreCase(u.getRole())) continue;
+                if (existing.contains(u.getId())) continue;
+                if (!PostgresUserDAO.getInstance().hasActiveLicenceForSport(u.getId(), sportId)) continue;
+                eligible.add(u);
+            }
+        }
+        coachPlayerCombo.setItems(FXCollections.observableArrayList(eligible));
+        if (!eligible.isEmpty() && coachPlayerCombo.getValue() == null) {
+            coachPlayerCombo.getSelectionModel().selectFirst();
+        }
+    }
+
     private void updateTeamStats(List<Team> teams) {
         if (teams == null || teams.isEmpty()) {
             teamStatsLabel.setText("Aucune équipe");
@@ -539,15 +561,16 @@ public class CoachDashboardFrame extends Application {
             showError("Sélection requise", "Sélectionnez une équipe.");
             return;
         }
-        String userId = coachPlayerIdField.getText();
-        if (userId == null || userId.isBlank()) {
-            showError("Entrée invalide", "User ID requis.");
+        User player = coachPlayerCombo.getValue();
+        if (player == null) {
+            showError("Sélection requise", "Sélectionnez un joueur.");
             return;
         }
-        boolean ok = teamController.handleAddPlayer(team.getId(), userId.trim());
+        boolean ok = teamController.handleAddPlayer(team.getId(), player.getId());
         if (ok) {
             refreshCoachTeamPlayers(team);
             refreshCoachTeams();
+            refreshEligiblePlayers(team);
         } else {
             showError("Erreur", teamController.getLastError());
         }
@@ -568,19 +591,10 @@ public class CoachDashboardFrame extends Application {
         if (ok) {
             refreshCoachTeamPlayers(team);
             refreshCoachTeams();
+            refreshEligiblePlayers(team);
         } else {
             showError("Erreur", teamController.getLastError());
         }
-    }
-
-    private void handlePlayerSearch() {
-        String query = playerSearchField.getText();
-        if (query == null || query.isBlank()) {
-            playerSearchResults.setItems(FXCollections.observableArrayList());
-            return;
-        }
-        List<User> results = PostgresUserDAO.getInstance().searchMembersByName(coachClubId, query);
-        playerSearchResults.setItems(FXCollections.observableArrayList(results == null ? List.of() : results));
     }
 
     private Button createMenuButton(String text) {

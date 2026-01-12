@@ -1161,8 +1161,6 @@ public class DirectorDashboardFrame extends Application {
             teamClubCombo.setItems(FXCollections.observableArrayList(clubs));
             if (!clubs.isEmpty() && teamClubCombo.getValue() == null) {
                 teamClubCombo.getSelectionModel().select(0);
-                refreshTeamCoaches();
-                refreshTeamsByClub(clubs.get(0).getClubID());
             }
             teamClubCombo.setDisable(clubs.size() == 1);
         } catch (SQLException e) {
@@ -1170,6 +1168,10 @@ public class DirectorDashboardFrame extends Application {
         }
 
         refreshTeamCoaches();
+        Club selected = teamClubCombo.getValue();
+        if (selected != null) {
+            refreshTeamsByClub(selected.getClubID());
+        }
 
         java.util.List<TypeSport> sports = typeSportController.handleGetAllTypeSports();
         if (sports == null) {
