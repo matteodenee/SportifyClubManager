@@ -20,10 +20,7 @@ public class CompositionFacade {
         return instance;
     }
 
-    /**
-     * UC : créer / modifier une composition.
-     * Appelle la logique métier pour validation et enregistrement.
-     */
+
     public boolean saveComposition(Composition composition) {
         return compositionManager.saveComposition(composition);
     }

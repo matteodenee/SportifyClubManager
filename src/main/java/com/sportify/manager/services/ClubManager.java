@@ -21,23 +21,23 @@ public class ClubManager {
         return clubIDCounter++;
     }
 
-    // --- CORRECTION : Ajout de int sportId dans les paramètres ---
-    public void createClub(String name, String description, int sportId, String type, String meetingSchedule, int maxCapacity) {
+
+    public void createClub(String name, String description, int sportId, String type, int maxCapacity, String managerId) {
         try {
             int clubID = generateClubID();
 
-            // --- CORRECTION : Utilisation des 7 arguments avec les bons noms de variables ---
+
             Club club = new Club(
-                    clubID,          // Utilise clubID (généré plus haut)
+                    clubID,
                     name,
                     description,
-                    sportId,         // Utilise le sportId passé en paramètre
+                    sportId,
                     type,
-                    meetingSchedule,
-                    maxCapacity
+                    maxCapacity,
+                    managerId
             );
 
-            // --- CORRECTION : Utilise l'objet 'club' créé juste au-dessus ---
+
             clubDAO.addClub(club);
 
         } catch (SQLException e) {

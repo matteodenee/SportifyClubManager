@@ -5,10 +5,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Implémentation PostgreSQL pour la gestion des types de sports.
- * Adapté pour l'intégration avec le module Licence.
- */
+
 public class PostgresTypeSportDAO extends TypeSportDAO {
 
     private final Connection connection;
@@ -138,7 +135,6 @@ public class PostgresTypeSportDAO extends TypeSportDAO {
         return false;
     }
 
-    // --- MÉTHODES PRIVÉES DE MAPPING ET UTILITAIRES ---
 
     private TypeSport mapResultSetToTypeSport(ResultSet rs) throws SQLException {
         return new TypeSport(

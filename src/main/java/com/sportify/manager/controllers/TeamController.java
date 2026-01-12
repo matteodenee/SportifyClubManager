@@ -119,6 +119,17 @@ public class TeamController {
         }
     }
 
+    public List<Team> handleGetTeamsByMember(String userId) {
+        try {
+            lastError = null;
+            return teamFacade.getTeamsByMember(userId);
+        } catch (Exception e) {
+            lastError = e.getMessage();
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     public String getLastError() {
         return lastError;
     }

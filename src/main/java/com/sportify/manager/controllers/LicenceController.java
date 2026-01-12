@@ -24,10 +24,7 @@ public class LicenceController {
         this.currentUser = user;
     }
 
-    /**
-     * Action appelée par le MemberDashboardFrame (Critère 7.1)
-     * Utilisation de 'throws Exception' pour propager les règles métier (A1, A2) vers l'UI.
-     */
+
     public void onDemandeLicence(TypeSport sport, TypeLicence type) throws Exception {
 
         if (sport == null || type == null) {
@@ -59,25 +56,18 @@ public class LicenceController {
         System.out.println("Demande de licence pour le sport " + sport.getNom() + " envoyée avec succès !");
     }
 
-    /**
-     * MÉTHODE CORRIGÉE : Apposée pour résoudre l'erreur "cannot find symbol"
-     * Action appelée par le ClubManagementFrame (Critère 7.2)
-     */
+
     public void validerLicence(String licenceId, boolean accepter, String commentaire) {
         // On délègue à la Facade qui s'occupe de la logique métier via le Manager
         LicenceFacade.getInstance().validerLicence(licenceId, accepter, commentaire);
     }
 
-    /**
-     * Récupère les licences par statut pour l'affichage Admin (Critère 7.2)
-     */
+
     public List<Licence> getLicencesByStatut(StatutLicence statut) {
         return LicenceFacade.getInstance().getLicencesByStatut(statut);
     }
 
-    /**
-     * Récupère les licences d'un membre pour son historique (Critère 7.4)
-     */
+
     public List<Licence> getLicencesByMembre(String membreId) {
         return LicenceFacade.getInstance().getLicencesByMembre(membreId);
     }

@@ -12,6 +12,10 @@ public interface TrainingDAO {
 
     boolean create(Training entrainement);
 
+    boolean update(Training entrainement);
+
+    boolean delete(int entrainementId);
+
     List<Training> getUpcomingByClub(int clubId, LocalDate fromDate);
     List<Training> getUpcomingByTeam(int teamId, LocalDate fromDate);
 

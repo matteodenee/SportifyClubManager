@@ -1,4 +1,5 @@
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/LicenceDAO.java
+/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/PostgresSmallEventDAO.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/EventDAO.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/Club.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/facade/LoginFacade.java
@@ -10,6 +11,7 @@
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/PostgresUserDAO.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/EquipmentType.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/PostgresTypeSportDAO.java
+/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/facade/SmallEventFacade.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/facade/EquipmentFacade.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/PostgresLicenceDAO.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/NetConversation.java
@@ -20,6 +22,7 @@
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/communication/network/ChatServer.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/StatManager.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/TrainingManager.java
+/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/SmallEventManager.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/controllers/RegisterController.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/controllers/CompositionController.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/PostgresMatchDAO.java
@@ -42,7 +45,6 @@
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/frame/RegisterFrame.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/TypeSportDAO.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/ClubManager.java
-/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/lloseng/ocsf/server/OriginatorMessage.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/CompositionManager.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/Event.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/controllers/StatController.java
@@ -53,7 +55,6 @@
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/Statistique.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/licence/Document.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/User.java
-/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/lloseng/ocsf/server/ObservableOriginatorServer.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/controllers/LoginController.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/persistence/AbstractFactory.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/PostgresClubDAO.java
@@ -72,6 +73,7 @@
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/TrainingDAO.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/Team.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/EquipmentTypeManager.java
+/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/controllers/SmallEventController.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/facade/StatFacade.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/Composition.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/facade/CommunicationFacade.java
@@ -104,7 +106,6 @@
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/TeamDAO.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/controllers/EquipmentController.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/licence/LicenceManager.java
-/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/lloseng/ocsf/server/ConnectionToClient.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/communication/network/NewMessageEvent.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/PostgresConversationDAO.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/persistence/PostgresFactory.java
@@ -119,13 +120,13 @@
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/licence/TypeLicence.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/frame/LoginFrame.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/communication/network/GetHistoryRequest.java
-/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/lloseng/ocsf/client/ObservableClient.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/PostgresMessageDAO.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/Match.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/TypeSport.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/EquipmentManager.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/Conversation.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/ConversationDAO.java
+/home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/dao/SmallEventDAO.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/communication/network/ChatServerObserver.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/communication/network/SendMessageRequest.java
 /home/ubuntu/Documents/Software-IG4/SportifyClubManager/src/main/java/com/sportify/manager/services/MembershipRequest.java

@@ -14,13 +14,10 @@ public class StatController {
         this.statFacade = new StatFacade();
     }
 
-    /**
-     * USE CASE 3 & 9 : Récupère les stats agrégées pour un camembert (PieChart)
-     * Répartit par type (Buts, Fautes, Arrêts...)
-     */
+
     public Map<String, Integer> getTeamDistribution(int teamId, String period) {
         try {
-            // Appel à la méthode agrégée que nous avons ajoutée au DAO/Facade
+
             return statFacade.getAggregatedStatsByTeam(teamId, period);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -28,10 +25,7 @@ public class StatController {
         }
     }
 
-    /**
-     * USE CASE 9.2.1 step 4 : Calcule les ratios et pourcentages
-     * Exemple : % de victoires ou ratio buts/match
-     */
+
     public Map<String, Double> getPerformanceRatios(int teamId, String period) {
         Map<String, Double> ratios = new HashMap<>();
         try {
@@ -53,10 +47,15 @@ public class StatController {
         return ratios;
     }
 
-    /**
-     * USE CASE 5 : Rank Performance (Top Players)
-     * Pour un graphique en barres (BarChart)
-     */
+    public List<SmallEvent> getMatchEvents(int matchId) {
+        try {
+            return statFacade.getMatchEvents(matchId);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return List.of();
+        }
+    }
+
     public Map<String, Integer> getTopScorers(int teamId) {
         try {
             return statFacade.getTopPerformers(teamId, "BUT", 5); // Top 5 buteurs
@@ -66,10 +65,7 @@ public class StatController {
         }
     }
 
-    /**
-     * USE CASE 8 : Compare Statistics
-     * Permet de comparer deux équipes
-     */
+
     public Map<String, Map<String, Integer>> compareTeams(int id1, int id2, String period) {
         Map<String, Map<String, Integer>> comparison = new HashMap<>();
         comparison.put("TeamA", getTeamDistribution(id1, period));

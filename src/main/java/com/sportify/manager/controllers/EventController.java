@@ -7,10 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Contrôleur pour la gestion des événements.
- * Pattern Singleton avec gestion d'erreurs via lastError.
- */
+
 public class EventController {
     private static EventController instance = null;
     private final EventFacade eventFacade;
@@ -27,16 +24,12 @@ public class EventController {
         return instance;
     }
 
-    /**
-     * Récupère la dernière erreur.
-     */
+
     public String getLastError() {
         return lastError;
     }
 
-    /**
-     * Crée un nouvel événement.
-     */
+
     public boolean createEvent(String nom, String description, LocalDateTime dateDebut,
                               int dureeMinutes, String lieu, String type,
                               int clubId, String createurId) {
@@ -68,9 +61,7 @@ public class EventController {
         }
     }
 
-    /**
-     * Récupère un événement par son ID.
-     */
+
     public Event getEventById(int eventId) {
         try {
             Event event = eventFacade.getEventById(eventId);
@@ -100,9 +91,7 @@ public class EventController {
         }
     }
 
-    /**
-     * Récupère tous les événements créés par un utilisateur.
-     */
+
     public List<Event> getEventsByCreator(String createurId) {
         try {
             List<Event> events = eventFacade.getEventsByCreator(createurId);
@@ -114,9 +103,7 @@ public class EventController {
         }
     }
 
-    /**
-     * Récupère tous les événements entre deux dates.
-     */
+
     public List<Event> getEventsByDateRange(LocalDateTime start, LocalDateTime end) {
         try {
             if (start == null || end == null) {
@@ -137,9 +124,7 @@ public class EventController {
         }
     }
 
-    /**
-     * Met à jour un événement existant.
-     */
+
     public boolean updateEvent(int eventId, String nom, String description,
                               LocalDateTime dateDebut, int dureeMinutes,
                               String lieu, String type) {
@@ -171,9 +156,7 @@ public class EventController {
         }
     }
 
-    /**
-     * Supprime un événement.
-     */
+
     public boolean deleteEvent(int eventId) {
         try {
             boolean result = eventFacade.deleteEvent(eventId);
@@ -189,9 +172,7 @@ public class EventController {
         }
     }
 
-    /**
-     * Gère la participation d'un utilisateur à un événement (RSVP).
-     */
+
     public boolean rsvpToEvent(int eventId, String userId, String status) {
         try {
             if (userId == null || userId.trim().isEmpty()) {
@@ -220,9 +201,7 @@ public class EventController {
         }
     }
 
-    /**
-     * Récupère tous les participants d'un événement.
-     */
+
     public Map<String, String> getEventParticipants(int eventId) {
         try {
             Map<String, String> participants = eventFacade.getEventParticipants(eventId);
@@ -234,9 +213,7 @@ public class EventController {
         }
     }
 
-    /**
-     * Récupère tous les événements auxquels un utilisateur participe.
-     */
+
     public List<Event> getEventsByParticipant(String userId) {
         try {
             if (userId == null || userId.trim().isEmpty()) {

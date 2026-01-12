@@ -8,13 +8,17 @@ import javafx.beans.property.SimpleStringProperty;
 import java.time.format.DateTimeFormatter;
 import com.sportify.manager.controllers.ClubController;
 import com.sportify.manager.controllers.CompositionController;
+import com.sportify.manager.controllers.LicenceController;
 import com.sportify.manager.controllers.MatchController;
 import com.sportify.manager.controllers.MatchRequestController;
 import com.sportify.manager.controllers.TypeSportController;
 import com.sportify.manager.controllers.TrainingController;
+import com.sportify.manager.controllers.TeamController;
 import com.sportify.manager.controllers.EventController;
 import com.sportify.manager.controllers.EquipmentController;
 import com.sportify.manager.controllers.EquipmentTypeController;
+import com.sportify.manager.facade.LicenceFacade;
+import com.sportify.manager.facade.TypeSportFacade;
 import com.sportify.manager.services.Club;
 import com.sportify.manager.services.Composition;
 import com.sportify.manager.services.Equipment;
@@ -24,13 +28,15 @@ import com.sportify.manager.services.Event;
 import com.sportify.manager.services.Match;
 import com.sportify.manager.services.MatchRequest;
 import com.sportify.manager.services.MatchRequestStatus;
-import com.sportify.manager.services.ParticipationStatus;
 import com.sportify.manager.services.Reservation;
 import com.sportify.manager.services.RoleAssignment;
+import com.sportify.manager.services.Team;
 import com.sportify.manager.services.Training;
 import com.sportify.manager.services.TypeSport;
 import com.sportify.manager.services.User;
-import com.sportify.manager.frame.CommunicationFrame;
+import com.sportify.manager.services.licence.Licence;
+import com.sportify.manager.services.licence.StatutLicence;
+import com.sportify.manager.services.licence.TypeLicence;
 import com.sportify.manager.dao.PostgresUserDAO;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
@@ -48,11 +54,12 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class CoachDashboardFrame extends Application {
     private User currentCoach;
@@ -60,19 +67,31 @@ public class CoachDashboardFrame extends Application {
     private Club coachClub;
 
     private ClubController clubController;
+    private LicenceController licenceController;
     private MatchController matchController;
     private MatchRequestController matchRequestController;
     private CompositionController compositionController;
     private TypeSportController sportController;
     private TrainingController trainingController;
+    private TeamController teamController = TeamController.getInstance();
     private EventController eventController = EventController.getInstance();
     private EquipmentController equipmentController = new EquipmentController();
     private EquipmentTypeController equipmentTypeController = new EquipmentTypeController();
 
     private StackPane displayArea;
 
+    // Team Management (Coach)
+    private VBox teamManagementView;
+    private TableView<Team> coachTeamTable;
+    private TableView<User> coachTeamPlayersTable;
+    private TextField coachPlayerIdField;
+    private TextField playerSearchField;
+    private ListView<User> playerSearchResults;
+    private Label teamStatsLabel;
+
     // Match View
     private VBox matchView;
+    private VBox licenceView;
     private TableView<Match> matchTable;
     private TableView<MatchRequest> matchRequestTable;
     private TextField matchRequestSearchField;
@@ -82,7 +101,8 @@ public class CoachDashboardFrame extends Application {
     private Label lastRefreshLabel;
     private java.util.List<MatchRequest> matchRequestCache = new java.util.ArrayList<>();
     private java.util.List<Match> matchCache = new java.util.ArrayList<>();
-    private ComboBox<Club> opponentClubCombo;
+    private ComboBox<Team> coachTeamCombo;
+    private ComboBox<Team> opponentTeamCombo;
     private ComboBox<String> venueCombo;
     private DatePicker matchDatePicker;
     private TextField matchTimeField;
@@ -90,7 +110,10 @@ public class CoachDashboardFrame extends Application {
     private TextField matchRefereeField;
     private Label matchMessageLabel;
     private List<Club> clubCache = new ArrayList<>();
+    private List<Team> matchTeamCache = new ArrayList<>();
     private Timeline matchRefreshTimeline;
+    private VBox licenceStatusBox;
+    private boolean documentAttached;
 
     // Training View
     private VBox trainingView;
@@ -103,12 +126,12 @@ public class CoachDashboardFrame extends Application {
     private TextField trainingLocationField;
     private TextField trainingActivityField;
     private TextField trainingClubIdField;  // ← Cette ligne est importante
+    private ComboBox<Team> trainingTeamCombo;
+    private ComboBox<Team> trainingFilterTeamCombo;
     private TableView<Training> trainingTable;
     private DatePicker trainingFromDatePicker;
-    private TextField participationUserIdField;
-    private ChoiceBox<ParticipationStatus> statusChoiceBox;
-    private ListView<String> participationList;
     private Label trainingMessageLabel;
+    private Map<Integer, String> trainingTeamNames = new HashMap<>();
 
     // Event View
     private ListView<Event> eventList;
@@ -125,10 +148,6 @@ public class CoachDashboardFrame extends Application {
     // Equipment View
     private ListView<Equipment> equipmentList;
     private ListView<Reservation> equipmentReservationList;
-    private TextField equipmentNameField;
-    private TextField equipmentTypeField;
-    private TextField equipmentConditionField;
-    private TextField equipmentQuantityField;
     private DatePicker equipmentStartDate;
     private DatePicker equipmentEndDate;
     private Label equipmentMessageLabel;
@@ -149,6 +168,8 @@ public class CoachDashboardFrame extends Application {
         Connection connection = PostgresUserDAO.getConnection();
 
         this.clubController = new ClubController(connection);
+        this.licenceController = new LicenceController();
+        this.licenceController.setCurrentUser(currentCoach);
         this.matchController = MatchController.getInstance();
         this.matchRequestController = MatchRequestController.getInstance();
         this.compositionController = CompositionController.getInstance();
@@ -170,14 +191,15 @@ public class CoachDashboardFrame extends Application {
         Label menuLabel = new Label("MENU COACH");
         menuLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px;");
 
-        Button btnTeam = createMenuButton("👥 Team Management");
-        Button btnTraining = createMenuButton("🏋️ Training Management");
-        Button btnMatch = createMenuButton("⚽ Match Management");
-        Button btnStats = createMenuButton("📊 Stat Management");
-        Button btnEvents = createMenuButton("📅 Event Management");
-        Button btnCommunication = createMenuButton("💬 Communication Management");
-        Button btnEquipment = createMenuButton("🧰 Equipement Management");
-        Button btnLogout = createMenuButton("🚪 Déconnexion");
+        Button btnTeam = createMenuButton("Team Management");
+        Button btnTraining = createMenuButton("Training Management");
+        Button btnMatch = createMenuButton("Match Management");
+        Button btnLicence = createMenuButton("Ma Licence");
+        Button btnStats = createMenuButton("Stat Management");
+        Button btnEvents = createMenuButton("Event Management");
+        Button btnCommunication = createMenuButton("Communication Management");
+        Button btnEquipment = createMenuButton("Equipement Management");
+        Button btnLogout = createMenuButton("Déconnexion");
 
         sidebar.getChildren().addAll(
                 menuLabel,
@@ -185,6 +207,7 @@ public class CoachDashboardFrame extends Application {
                 btnTeam,
                 btnTraining,
                 btnMatch,
+                btnLicence,
                 btnStats,
                 btnEvents,
                 btnCommunication,
@@ -210,29 +233,43 @@ public class CoachDashboardFrame extends Application {
         displayArea.getChildren().add(placeholderText);
 
         createMatchView();
+        createLicenceView();
         createTrainingView();
         createEventView();
         createCommunicationView();
         createEquipmentView();
         createTypeEquipmentView();
+        createTeamManagementView();
 
         // --- ACTIONS ---
         btnStats.setOnAction(e -> {
             if (coachClubId != -1) {
+                List<Team> myTeams = getCoachTeams();
+                if (myTeams.isEmpty()) {
+                    showError("Erreur", "Aucune équipe assignée à ce coach.");
+                    return;
+                }
                 StatFrame statFrame = new StatFrame();
-                statFrame.show(coachClubId);
+                statFrame.show(myTeams);
             } else {
                 placeholderText.setText("Erreur : Aucun club n'est associé à votre compte coach.");
             }
         });
 
-        btnTeam.setOnAction(e -> setDisplay(createCoachPlaceholder("Team Management", "Ce module sera ajouté prochainement.")));
+        btnTeam.setOnAction(e -> {
+            setDisplay(teamManagementView);
+            refreshCoachTeams();
+        });
         btnTraining.setOnAction(e -> {
             if (coachClubId == -1) {
                 showError("Erreur", "Aucun club n'est associé à votre compte coach.");
                 return;
             }
+            refreshTrainingTeams();
             setDisplay(trainingView);
+            if (trainingFromDatePicker != null) {
+                trainingFromDatePicker.setValue(LocalDate.now());
+            }
             refreshTrainingList();
         });
         btnEvents.setOnAction(e -> {
@@ -252,7 +289,14 @@ public class CoachDashboardFrame extends Application {
             startMatchAutoRefresh();
             setDisplay(matchView);
         });
+        btnLicence.setOnAction(e -> {
+            setDisplay(licenceView);
+            refreshLicenceInfo();
+        });
         btnLogout.setOnAction(e -> handleLogout(primaryStage));
+
+        setDisplay(teamManagementView);
+        refreshCoachTeams();
 
         mainContent.getChildren().addAll(welcomeLabel, clubInfo, displayArea);
 
@@ -265,6 +309,280 @@ public class CoachDashboardFrame extends Application {
         primaryStage.show();
     }
 
+    // ==========================================
+    // TEAM MANAGEMENT (COACH)
+    // ==========================================
+    private void createTeamManagementView() {
+        teamManagementView = new VBox(15);
+        teamManagementView.setPadding(new Insets(20));
+
+        Label title = new Label("Team Management");
+        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
+
+        teamStatsLabel = new Label("Chargement...");
+        teamStatsLabel.setStyle("-fx-text-fill: #7f8c8d;");
+
+
+        // === TABLE DES ÉQUIPES - CONFIGURATION CORRIGÉE ===
+        coachTeamTable = new TableView<>();
+        coachTeamTable.setPrefHeight(200);
+        coachTeamTable.setMinHeight(150);
+
+        // Colonne ID
+        TableColumn<Team, Integer> idCol = new TableColumn<>("ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+        idCol.setMinWidth(50);
+
+        // Colonne Nom
+        TableColumn<Team, String> nameCol = new TableColumn<>("Nom");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("nom"));
+        nameCol.setMinWidth(150);
+
+        // Colonne Catégorie
+        TableColumn<Team, String> catCol = new TableColumn<>("Catégorie");
+        catCol.setCellValueFactory(new PropertyValueFactory<>("categorie"));
+        catCol.setMinWidth(120);
+
+        // Colonne Coach ID (pour debug)
+        TableColumn<Team, String> coachCol = new TableColumn<>("Coach");
+        coachCol.setCellValueFactory(cellData -> {
+            String coachId = cellData.getValue().getCoachId();
+            return new javafx.beans.property.SimpleStringProperty(coachId != null ? coachId : "Non assigné");
+        });
+        coachCol.setMinWidth(100);
+
+        coachTeamTable.getColumns().addAll(idCol, nameCol, catCol, coachCol);
+        coachTeamTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        coachTeamTable.setPlaceholder(new Label("Aucune équipe à afficher"));
+
+        // Listener pour charger les joueurs
+        coachTeamTable.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> {
+            refreshCoachTeamPlayers(sel);
+        });
+
+        // === TABLE DES JOUEURS ===
+        coachTeamPlayersTable = new TableView<>();
+        coachTeamPlayersTable.setPrefHeight(200);
+        coachTeamPlayersTable.setMinHeight(150);
+
+        TableColumn<User, String> pidCol = new TableColumn<>("ID");
+        pidCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+        pidCol.setMinWidth(100);
+
+        TableColumn<User, String> pnameCol = new TableColumn<>("Nom");
+        pnameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+        pnameCol.setMinWidth(200);
+
+        coachTeamPlayersTable.getColumns().addAll(pidCol, pnameCol);
+        coachTeamPlayersTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        coachTeamPlayersTable.setPlaceholder(new Label("Sélectionnez une équipe"));
+
+        // === ACTIONS JOUEURS ===
+        coachPlayerIdField = new TextField();
+        coachPlayerIdField.setPromptText("User ID");
+
+        Button addBtn = new Button("➕ Ajouter joueur");
+        addBtn.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold;");
+        addBtn.setOnAction(e -> handleCoachAddPlayer());
+
+        Button removeBtn = new Button("➖ Retirer joueur");
+        removeBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;");
+        removeBtn.setOnAction(e -> handleCoachRemovePlayer());
+
+        // === RECHERCHE JOUEUR ===
+        playerSearchField = new TextField();
+        playerSearchField.setPromptText("Rechercher par nom");
+
+        Button searchBtn = new Button("🔍 Rechercher");
+        searchBtn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;");
+        searchBtn.setOnAction(e -> handlePlayerSearch());
+
+        playerSearchResults = new ListView<>();
+        playerSearchResults.setPrefHeight(150);
+        playerSearchResults.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(User item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName() + " (" + item.getId() + ")");
+                }
+            }
+        });
+
+        playerSearchResults.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> {
+            if (sel != null) {
+                coachPlayerIdField.setText(sel.getId());
+            }
+        });
+
+        HBox playerActions = new HBox(10, coachPlayerIdField, addBtn, removeBtn);
+        playerActions.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+        HBox searchBox = new HBox(10, playerSearchField, searchBtn);
+        searchBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+        // === ASSEMBLY ===
+        teamManagementView.getChildren().addAll(
+                title,
+                new HBox(10, teamStatsLabel),
+                new Separator(),
+                new Label("Mes équipes"),
+                coachTeamTable,
+                new Separator(),
+                new Label("Joueurs de l'équipe sélectionnée"),
+                coachTeamPlayersTable,
+                playerActions,
+                new Separator(),
+                new Label("Rechercher un joueur dans le club"),
+                searchBox,
+                playerSearchResults
+        );
+
+    }
+    private void refreshCoachTeams() {
+        if (coachClubId <= 0) {
+            coachTeamTable.setItems(FXCollections.observableArrayList());
+            coachTeamPlayersTable.setItems(FXCollections.observableArrayList());
+            teamStatsLabel.setText("Aucun club assigné");
+            return;
+        }
+
+        List<Team> allTeams = teamController.handleGetTeams(coachClubId);
+
+        if (allTeams == null) {
+            coachTeamTable.setItems(FXCollections.observableArrayList());
+            coachTeamPlayersTable.setItems(FXCollections.observableArrayList());
+            teamStatsLabel.setText(" Erreur de chargement");
+            return;
+        }
+
+        List<Team> myTeams = new ArrayList<>();
+        for (Team team : allTeams) {
+            if (team != null && team.getCoachId() != null) {
+                boolean isMyTeam = team.getCoachId().equals(currentCoach.getId());
+                if (isMyTeam) {
+                    myTeams.add(team);
+                }
+            }
+        }
+
+        coachTeamTable.setItems(FXCollections.observableArrayList(myTeams));
+        coachTeamTable.refresh();  // Force refresh
+
+        // Mettre à jour les stats
+        updateTeamStats(myTeams);
+
+        // Message utilisateur
+        if (myTeams.isEmpty()) {
+            teamStatsLabel.setText("⚠️ Aucune équipe assignée à ce coach");
+            teamStatsLabel.setStyle("-fx-text-fill: #e67e22; -fx-font-weight: bold;");
+        }
+
+        // Vider la table des joueurs
+        coachTeamPlayersTable.setItems(FXCollections.observableArrayList());
+    }
+
+    private List<Team> getCoachTeams() {
+        if (coachClubId <= 0) {
+            return new ArrayList<>();
+        }
+        List<Team> allTeams = teamController.handleGetTeams(coachClubId);
+        if (allTeams == null) {
+            return new ArrayList<>();
+        }
+        List<Team> myTeams = new ArrayList<>();
+        for (Team team : allTeams) {
+            if (team != null && currentCoach.getId().equals(team.getCoachId())) {
+                myTeams.add(team);
+            }
+        }
+        return myTeams;
+    }
+
+
+
+    private void refreshCoachTeamPlayers(Team team) {
+        if (team == null) {
+            coachTeamPlayersTable.setItems(FXCollections.observableArrayList());
+            return;
+        }
+        List<User> players = teamController.handleGetPlayers(team.getId());
+        coachTeamPlayersTable.setItems(FXCollections.observableArrayList(players == null ? List.of() : players));
+    }
+
+    private void updateTeamStats(List<Team> teams) {
+        if (teams == null || teams.isEmpty()) {
+            teamStatsLabel.setText("Aucune équipe");
+            return;
+        }
+
+        int teamCount = teams.size();
+        int totalPlayers = 0;
+
+        for (Team t : teams) {
+            if (t != null) {
+                List<User> players = teamController.handleGetPlayers(t.getId());
+                totalPlayers += (players != null ? players.size() : 0);
+            }
+        }
+
+        teamStatsLabel.setText("Équipes: " + teamCount + " | Joueurs: " + totalPlayers);
+        teamStatsLabel.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+
+    }
+
+    private void handleCoachAddPlayer() {
+        Team team = coachTeamTable.getSelectionModel().getSelectedItem();
+        if (team == null) {
+            showError("Sélection requise", "Sélectionnez une équipe.");
+            return;
+        }
+        String userId = coachPlayerIdField.getText();
+        if (userId == null || userId.isBlank()) {
+            showError("Entrée invalide", "User ID requis.");
+            return;
+        }
+        boolean ok = teamController.handleAddPlayer(team.getId(), userId.trim());
+        if (ok) {
+            refreshCoachTeamPlayers(team);
+            refreshCoachTeams();
+        } else {
+            showError("Erreur", teamController.getLastError());
+        }
+    }
+
+    private void handleCoachRemovePlayer() {
+        Team team = coachTeamTable.getSelectionModel().getSelectedItem();
+        if (team == null) {
+            showError("Sélection requise", "Sélectionnez une équipe.");
+            return;
+        }
+        User player = coachTeamPlayersTable.getSelectionModel().getSelectedItem();
+        if (player == null) {
+            showError("Sélection requise", "Sélectionnez un joueur.");
+            return;
+        }
+        boolean ok = teamController.handleRemovePlayer(team.getId(), player.getId());
+        if (ok) {
+            refreshCoachTeamPlayers(team);
+            refreshCoachTeams();
+        } else {
+            showError("Erreur", teamController.getLastError());
+        }
+    }
+
+    private void handlePlayerSearch() {
+        String query = playerSearchField.getText();
+        if (query == null || query.isBlank()) {
+            playerSearchResults.setItems(FXCollections.observableArrayList());
+            return;
+        }
+        List<User> results = PostgresUserDAO.getInstance().searchMembersByName(coachClubId, query);
+        playerSearchResults.setItems(FXCollections.observableArrayList(results == null ? List.of() : results));
+    }
+
     private Button createMenuButton(String text) {
         Button btn = new Button(text);
         btn.setMaxWidth(Double.MAX_VALUE);
@@ -272,14 +590,10 @@ public class CoachDashboardFrame extends Application {
         btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #bdc3c7; -fx-alignment: CENTER_LEFT; -fx-cursor: hand;");
 
         btn.setOnMouseEntered(e -> {
-            if (!text.contains("Stat")) btn.setStyle("-fx-background-color: #34495e; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;");
+            btn.setStyle("-fx-background-color: #34495e; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;");
         });
         btn.setOnMouseExited(e -> {
-            if (!text.contains("Stat")) {
-                btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #bdc3c7; -fx-alignment: CENTER_LEFT;");
-            } else {
-                btn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-alignment: CENTER_LEFT;");
-            }
+            btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #bdc3c7; -fx-alignment: CENTER_LEFT;");
         });
 
         return btn;
@@ -313,6 +627,31 @@ public class CoachDashboardFrame extends Application {
         trainingActivityField = new TextField();
         trainingActivityField.setPromptText("Endurance, technique...");
 
+        trainingTeamCombo = new ComboBox<>();
+        trainingTeamCombo.setPromptText("Équipe");
+        trainingTeamCombo.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getNom() + " (ID " + item.getId() + ")");
+                }
+            }
+        });
+        trainingTeamCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getNom() + " (ID " + item.getId() + ")");
+                }
+            }
+        });
+
         trainingClubIdField = new TextField();
         trainingClubIdField.setText(String.valueOf(coachClubId));
         trainingClubIdField.setDisable(true);
@@ -327,11 +666,22 @@ public class CoachDashboardFrame extends Application {
         formGrid.add(new Label("Activité :"), 2, 1);
         formGrid.add(trainingActivityField, 3, 1);
 
+        formGrid.add(new Label("Équipe :"), 0, 2);
+        formGrid.add(trainingTeamCombo, 1, 2);
+
         Button createButton = new Button("➕ Planifier");
         createButton.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold;");
         createButton.setOnAction(e -> handleCreateTraining());
 
-        HBox createRow = new HBox(10, createButton);
+        Button updateButton = new Button("✏️ Modifier");
+        updateButton.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;");
+        updateButton.setOnAction(e -> handleUpdateTraining());
+
+        Button deleteButton = new Button("🗑️ Supprimer");
+        deleteButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;");
+        deleteButton.setOnAction(e -> handleDeleteTraining());
+
+        HBox createRow = new HBox(10, createButton, updateButton, deleteButton);
         createRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
 
         // === LISTE DES ENTRAÎNEMENTS ===
@@ -340,40 +690,42 @@ public class CoachDashboardFrame extends Application {
 
         HBox filterRow = new HBox(10);
         filterRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-        filterRow.getChildren().add(new Label("À partir du :"));
-        trainingFromDatePicker = new DatePicker(LocalDate.now());
-        Button refreshButton = new Button("🔄 Rafraîchir");
-        refreshButton.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
-        refreshButton.setOnAction(e -> refreshTrainingList());
-        filterRow.getChildren().addAll(trainingFromDatePicker, refreshButton);
+        Label filterLabel = new Label("Équipe :");
+        trainingFilterTeamCombo = new ComboBox<>();
+        trainingFilterTeamCombo.setPromptText("Toutes les équipes");
+        trainingFilterTeamCombo.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getNom() + " (ID " + item.getId() + ")");
+                }
+            }
+        });
+        trainingFilterTeamCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getNom() + " (ID " + item.getId() + ")");
+                }
+            }
+        });
+        trainingFilterTeamCombo.valueProperty().addListener((obs, oldVal, newVal) -> refreshTrainingList());
+        filterRow.getChildren().addAll(filterLabel, trainingFilterTeamCombo);
 
         trainingTable = new TableView<>();
         trainingTable.setPrefHeight(220);
+        trainingTable.setMinHeight(180);
         setupTrainingTable();
 
         trainingTable.getSelectionModel().selectedItemProperty().addListener(
-                (obs, oldVal, newVal) -> loadTrainingParticipation()
+                (obs, oldVal, newVal) -> loadTrainingSelection(newVal)
         );
-
-        // === PARTICIPATION ===
-        Label participationLabel = new Label("Participation");
-        participationLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-
-        participationUserIdField = new TextField();
-        participationUserIdField.setPromptText("User ID (ex: " + currentCoach.getId() + ")");
-
-        statusChoiceBox = new ChoiceBox<>(FXCollections.observableArrayList(ParticipationStatus.values()));
-        statusChoiceBox.getSelectionModel().select(ParticipationStatus.PENDING);
-
-        Button markButton = new Button("✓ Marquer");
-        markButton.setStyle("-fx-background-color: #f39c12; -fx-text-fill: white; -fx-font-weight: bold;");
-        markButton.setOnAction(e -> handleMarkParticipation());
-
-        HBox participationRow = new HBox(10, participationUserIdField, statusChoiceBox, markButton);
-        participationRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-
-        participationList = new ListView<>();
-        participationList.setPrefHeight(120);
 
         trainingMessageLabel = new Label();
         trainingMessageLabel.setStyle("-fx-text-fill: #e67e22; -fx-font-weight: bold;");
@@ -389,12 +741,46 @@ public class CoachDashboardFrame extends Application {
                 upcomingLabel,
                 filterRow,
                 trainingTable,
-                new Separator(),
-                participationLabel,
-                participationRow,
-                participationList,
                 trainingMessageLabel
         );
+    }
+
+    private void refreshTrainingTeams() {
+        if (coachClubId <= 0) {
+            trainingTeamCombo.setItems(FXCollections.observableArrayList());
+            if (trainingFilterTeamCombo != null) {
+                trainingFilterTeamCombo.setItems(FXCollections.observableArrayList());
+                trainingFilterTeamCombo.getSelectionModel().clearSelection();
+            }
+            trainingTeamNames.clear();
+            return;
+        }
+        List<Team> teams = teamController.handleGetTeams(coachClubId);
+        if (teams != null) {
+            teams = teams.stream()
+                    .filter(t -> t != null && currentCoach.getId().equals(t.getCoachId()))
+                    .toList();
+        }
+        trainingTeamNames.clear();
+        if (teams != null) {
+            for (Team team : teams) {
+                if (team != null) {
+                    trainingTeamNames.put(team.getId(), team.getNom());
+                }
+            }
+        }
+        trainingTeamCombo.setItems(FXCollections.observableArrayList(teams == null ? List.of() : teams));
+        if (trainingTeamCombo.getSelectionModel().isEmpty() && !trainingTeamCombo.getItems().isEmpty()) {
+            trainingTeamCombo.getSelectionModel().selectFirst();
+        }
+        if (trainingFilterTeamCombo != null) {
+            trainingFilterTeamCombo.setItems(FXCollections.observableArrayList(teams == null ? List.of() : teams));
+            if (trainingFilterTeamCombo.getItems().size() == 1) {
+                trainingFilterTeamCombo.getSelectionModel().selectFirst();
+            } else {
+                trainingFilterTeamCombo.getSelectionModel().clearSelection();
+            }
+        }
     }
 
     private void setupTrainingTable() {
@@ -420,7 +806,11 @@ public class CoachDashboardFrame extends Application {
         activityCol.setCellValueFactory(new PropertyValueFactory<>("activite"));
         activityCol.setMinWidth(150);
 
-        trainingTable.getColumns().addAll(idCol, dateCol, timeCol, locationCol, activityCol);
+        TableColumn<Training, String> teamCol = new TableColumn<>("Équipe");
+        teamCol.setCellValueFactory(cell -> new SimpleStringProperty(getTeamName(cell.getValue().getTeamId())));
+        teamCol.setMinWidth(120);
+
+        trainingTable.getColumns().addAll(idCol, dateCol, timeCol, teamCol, locationCol, activityCol);
         trainingTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         trainingTable.setPlaceholder(new Label("Aucun entraînement à afficher"));
     }
@@ -433,12 +823,12 @@ public class CoachDashboardFrame extends Application {
         trainingController.onRefresh();
     }
 
-    private void loadTrainingParticipation() {
-        trainingController.onLoadParticipation();
+    private void handleUpdateTraining() {
+        trainingController.onUpdate();
     }
 
-    private void handleMarkParticipation() {
-        trainingController.onMarkParticipation();
+    private void handleDeleteTraining() {
+        trainingController.onDelete();
     }
 
     // Méthodes accesseurs pour TrainingController (similaires à TrainingFrame)
@@ -462,8 +852,18 @@ public class CoachDashboardFrame extends Application {
         return trainingClubIdField != null ? trainingClubIdField.getText() : "";
     }
 
+    public int getTrainingTeamId() {
+        Team team = trainingTeamCombo != null ? trainingTeamCombo.getValue() : null;
+        return team != null ? team.getId() : -1;
+    }
+
+    public int getTrainingFilterTeamId() {
+        Team team = trainingFilterTeamCombo != null ? trainingFilterTeamCombo.getValue() : null;
+        return team != null ? team.getId() : -1;
+    }
+
     public LocalDate getFromDate() {
-        return trainingFromDatePicker != null ? trainingFromDatePicker.getValue() : null;
+        return null;
     }
 
     public int getSelectedTrainingId() {
@@ -474,33 +874,19 @@ public class CoachDashboardFrame extends Application {
         return selected.getId();
     }
 
-    public String getParticipationUserId() {
-        return participationUserIdField != null ? participationUserIdField.getText() : "";
-    }
-
-    public ParticipationStatus getSelectedStatus() {
-        ParticipationStatus status = statusChoiceBox != null ? statusChoiceBox.getValue() : null;
-        return status != null ? status : ParticipationStatus.PENDING;
-    }
-
     public void setTrainings(List<Training> trainings) {
         if (trainingTable == null) {
             return;
         }
-        trainingTable.setItems(FXCollections.observableArrayList(trainings));
+        List<Training> safeList = trainings == null ? List.of() : trainings;
+        trainingTable.getSelectionModel().clearSelection();
+        trainingTable.setItems(FXCollections.observableArrayList(safeList));
+        trainingTable.refresh();
     }
 
-    public void setParticipation(Map<User, ParticipationStatus> participation) {
-        if (participationList == null) {
-            return;
-        }
-        List<String> rows = new ArrayList<>();
-        for (Map.Entry<User, ParticipationStatus> entry : participation.entrySet()) {
-            User user = entry.getKey();
-            ParticipationStatus status = entry.getValue();
-            rows.add(user.getId() + " - " + user.getName() + " (" + status + ")");
-        }
-        participationList.setItems(FXCollections.observableArrayList(rows));
+    private String getTeamName(int teamId) {
+        String name = trainingTeamNames.get(teamId);
+        return name != null ? name : ("ID " + teamId);
     }
 
     public void showTrainingSuccess(String message) {
@@ -517,10 +903,6 @@ public class CoachDashboardFrame extends Application {
         }
     }
 
-    public void clearParticipation() {
-        clearParticipationList();
-    }
-
     public void clearTrainingForm() {
         if (trainingDatePicker != null) trainingDatePicker.setValue(null);
         if (trainingTimeField != null) trainingTimeField.clear();
@@ -528,9 +910,27 @@ public class CoachDashboardFrame extends Application {
         if (trainingActivityField != null) trainingActivityField.clear();
     }
 
-    private void clearParticipationList() {
-        if (participationList != null) {
-            participationList.getItems().clear();
+    public void resetTrainingFilter() {}
+
+    private void loadTrainingSelection(Training training) {
+        if (training == null) {
+            return;
+        }
+        if (trainingDatePicker != null) trainingDatePicker.setValue(training.getDate());
+        if (trainingTimeField != null) trainingTimeField.setText(training.getHeure() != null ? training.getHeure().toString() : "");
+        if (trainingLocationField != null) trainingLocationField.setText(training.getLieu() != null ? training.getLieu() : "");
+        if (trainingActivityField != null) trainingActivityField.setText(training.getActivite() != null ? training.getActivite() : "");
+        if (trainingTeamCombo != null) {
+            Team match = null;
+            for (Team team : trainingTeamCombo.getItems()) {
+                if (team != null && team.getId() == training.getTeamId()) {
+                    match = team;
+                    break;
+                }
+            }
+            if (match != null) {
+                trainingTeamCombo.getSelectionModel().select(match);
+            }
         }
     }
 
@@ -541,7 +941,7 @@ public class CoachDashboardFrame extends Application {
         matchView = new VBox(20);
         matchView.setPadding(new Insets(20));
 
-        Label title = new Label("Matchs du Club");
+        Label title = new Label("Matchs des équipes");
         title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #34495e;");
 
         // === FORMULAIRE ===
@@ -551,8 +951,55 @@ public class CoachDashboardFrame extends Application {
         formGrid.setPadding(new Insets(15));
         formGrid.setStyle("-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #dcdde1;");
 
-        opponentClubCombo = new ComboBox<>();
-        opponentClubCombo.setPromptText("Club adverse");
+        coachTeamCombo = new ComboBox<>();
+        coachTeamCombo.setPromptText("Mon équipe");
+        coachTeamCombo.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getNom() + " (" + getClubName(item.getClubId()) + ")");
+                }
+            }
+        });
+        coachTeamCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getNom() + " (" + getClubName(item.getClubId()) + ")");
+                }
+            }
+        });
+
+        opponentTeamCombo = new ComboBox<>();
+        opponentTeamCombo.setPromptText("Équipe adverse");
+        opponentTeamCombo.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getNom() + " (" + getClubName(item.getClubId()) + ")");
+                }
+            }
+        });
+        opponentTeamCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getNom() + " (" + getClubName(item.getClubId()) + ")");
+                }
+            }
+        });
 
         venueCombo = new ComboBox<>();
         venueCombo.setItems(javafx.collections.FXCollections.observableArrayList("Domicile", "Extérieur"));
@@ -569,20 +1016,23 @@ public class CoachDashboardFrame extends Application {
         matchRefereeField = new TextField();
         matchRefereeField.setPromptText("Nom de l'arbitre");
 
-        formGrid.add(new Label("Adversaire :"), 0, 0);
-        formGrid.add(opponentClubCombo, 1, 0);
-        formGrid.add(new Label("Lieu :"), 2, 0);
-        formGrid.add(venueCombo, 3, 0);
+        formGrid.add(new Label("Mon équipe :"), 0, 0);
+        formGrid.add(coachTeamCombo, 1, 0);
+        formGrid.add(new Label("Adversaire :"), 2, 0);
+        formGrid.add(opponentTeamCombo, 3, 0);
 
-        formGrid.add(new Label("Date :"), 0, 1);
-        formGrid.add(matchDatePicker, 1, 1);
-        formGrid.add(new Label("Heure :"), 2, 1);
-        formGrid.add(matchTimeField, 3, 1);
+        formGrid.add(new Label("Lieu :"), 0, 1);
+        formGrid.add(venueCombo, 1, 1);
+        formGrid.add(new Label("Date :"), 2, 1);
+        formGrid.add(matchDatePicker, 3, 1);
 
-        formGrid.add(new Label("Localisation :"), 0, 2);
-        formGrid.add(matchLocationField, 1, 2);
-        formGrid.add(new Label("Arbitre :"), 2, 2);
-        formGrid.add(matchRefereeField, 3, 2);
+        formGrid.add(new Label("Heure :"), 0, 2);
+        formGrid.add(matchTimeField, 1, 2);
+        formGrid.add(new Label("Localisation :"), 2, 2);
+        formGrid.add(matchLocationField, 3, 2);
+
+        formGrid.add(new Label("Arbitre :"), 0, 3);
+        formGrid.add(matchRefereeField, 1, 3);
 
         Button btnCreate = new Button("➕ Demander");
         btnCreate.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold;");
@@ -591,7 +1041,7 @@ public class CoachDashboardFrame extends Application {
         btnCompose.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;");
 
         HBox actions = new HBox(10, btnCreate, btnCompose);
-        formGrid.add(actions, 1, 3, 3, 1);
+        formGrid.add(actions, 1, 4, 3, 1);
 
         matchMessageLabel = new Label("");
         matchMessageLabel.setStyle("-fx-text-fill: #e67e22; -fx-font-weight: bold;");
@@ -630,7 +1080,7 @@ public class CoachDashboardFrame extends Application {
         matchView.getChildren().add(new Label("Mes demandes de match :"));
         matchView.getChildren().add(requestHeader);
         matchView.getChildren().add(matchRequestTable);
-        matchView.getChildren().add(new Label("Matchs du club :"));
+        matchView.getChildren().add(new Label("Matchs des équipes :"));
         matchView.getChildren().add(matchHeader);
         matchView.getChildren().add(matchTable);
 
@@ -640,6 +1090,11 @@ public class CoachDashboardFrame extends Application {
 
         matchRequestSearchField.textProperty().addListener((obs, old, val) -> applyMatchRequestFilter());
         matchSearchField.textProperty().addListener((obs, old, val) -> applyMatchFilter());
+        coachTeamCombo.setOnAction(e -> {
+            refreshOpponentTeams();
+            refreshMatchRequestList();
+            refreshMatchList();
+        });
     }
 
     private void setupMatchTable() {
@@ -652,10 +1107,8 @@ public class CoachDashboardFrame extends Application {
         TableColumn<Match, String> opponentCol = new TableColumn<>("Adversaire");
         opponentCol.setCellValueFactory(cellData -> {
             Match match = cellData.getValue();
-            int opponentId = (match.getHomeTeamId() == coachClubId)
-                    ? match.getAwayTeamId()
-                    : match.getHomeTeamId();
-            return new javafx.beans.property.SimpleStringProperty(getOpponentName(opponentId));
+            int opponentId = getOpponentTeamId(match);
+            return new javafx.beans.property.SimpleStringProperty(getTeamDisplayById(opponentId));
         });
         opponentCol.setMinWidth(150);
 
@@ -668,7 +1121,7 @@ public class CoachDashboardFrame extends Application {
         TableColumn<Match, String> lieuCol = new TableColumn<>("Lieu");
         lieuCol.setCellValueFactory(cellData -> {
             Match match = cellData.getValue();
-            String lieu = (match.getHomeTeamId() == coachClubId) ? "🏠 Domicile" : "✈️ Extérieur";
+            String lieu = isCoachHome(match) ? "🏠 Domicile" : "✈️ Extérieur";
             return new javafx.beans.property.SimpleStringProperty(lieu);
         });
         lieuCol.setMinWidth(100);
@@ -692,8 +1145,11 @@ public class CoachDashboardFrame extends Application {
         matchTable.setRowFactory(tv -> {
             TableRow<Match> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
-                if (event.getClickCount() == 2 && !row.isEmpty()) {
-                    openCompositionDialog(row.getItem());
+                if (!row.isEmpty()) {
+                    matchTable.getSelectionModel().select(row.getItem());
+                    if (event.getClickCount() == 2) {
+                        openCompositionDialog(row.getItem());
+                    }
                 }
             });
             return row;
@@ -709,7 +1165,7 @@ public class CoachDashboardFrame extends Application {
         TableColumn<MatchRequest, String> opponentCol = new TableColumn<>("Adversaire");
         opponentCol.setCellValueFactory(cellData ->
                 new javafx.beans.property.SimpleStringProperty(
-                        getOpponentName(cellData.getValue().getOpponentClubId())));
+                        getTeamDisplayById(getOpponentTeamId(cellData.getValue()))));
 
         TableColumn<MatchRequest, String> dateCol = new TableColumn<>("Date/Heure");
         dateCol.setCellValueFactory(cellData ->
@@ -749,13 +1205,28 @@ public class CoachDashboardFrame extends Application {
             showError("Erreur", "Club du coach introuvable.");
             return;
         }
-        if (coachClub.getSportId() <= 0) {
-            matchMessageLabel.setText("Le club n'a pas de sport associé.");
+        Team coachTeam = coachTeamCombo.getValue();
+        if (coachTeam == null) {
+            matchMessageLabel.setText("Veuillez choisir votre équipe.");
             return;
         }
-        Club opponent = opponentClubCombo.getValue();
-        if (opponent == null) {
-            matchMessageLabel.setText("Veuillez choisir un club adverse.");
+        Team opponentTeam = opponentTeamCombo.getValue();
+        if (opponentTeam == null) {
+            matchMessageLabel.setText("Veuillez choisir une équipe adverse.");
+            return;
+        }
+        if (coachTeam.getId() == opponentTeam.getId()) {
+            matchMessageLabel.setText("Les équipes doivent être différentes.");
+            return;
+        }
+        Integer sportId = coachTeam.getTypeSportId();
+        if (sportId == null || sportId <= 0) {
+            matchMessageLabel.setText("Type sport de l'équipe non défini.");
+            return;
+        }
+        Integer opponentSportId = opponentTeam.getTypeSportId();
+        if (opponentSportId != null && !opponentSportId.equals(sportId)) {
+            matchMessageLabel.setText("Les équipes doivent partager le même sport.");
             return;
         }
         LocalDate date = matchDatePicker.getValue();
@@ -767,16 +1238,18 @@ public class CoachDashboardFrame extends Application {
         LocalDateTime dateTime = LocalDateTime.of(date, time);
 
         boolean home = "Domicile".equals(venueCombo.getValue());
-        int homeId = home ? coachClub.getClubID() : opponent.getClubID();
-        int awayId = home ? opponent.getClubID() : coachClub.getClubID();
+        int homeId = home ? coachTeam.getId() : opponentTeam.getId();
+        int awayId = home ? opponentTeam.getId() : coachTeam.getId();
+        int requesterClubId = coachTeam.getClubId();
+        int opponentClubId = opponentTeam.getClubId();
 
         MatchRequest request = new MatchRequest(
                 null,
-                coachClubId,
-                opponent.getClubID(),
+                requesterClubId,
+                opponentClubId,
                 homeId,
                 awayId,
-                coachClub.getSportId(),
+                sportId,
                 dateTime,
                 matchLocationField.getText(),
                 matchRefereeField.getText(),
@@ -820,6 +1293,29 @@ public class CoachDashboardFrame extends Application {
         VBox root = new VBox(10);
         root.setPadding(new Insets(15));
 
+        int teamId = getCoachTeamIdForMatch(match);
+        if (teamId <= 0) {
+            showError("Sélection invalide", "Impossible d'identifier l'équipe du coach pour ce match.");
+            return;
+        }
+        List<User> teamPlayers = teamController.handleGetPlayers(teamId);
+        List<User> eligiblePlayers = new ArrayList<>();
+        if (teamPlayers != null) {
+            int sportId = match.getTypeSportId();
+            for (User player : teamPlayers) {
+                if (player == null) {
+                    continue;
+                }
+                if (PostgresUserDAO.getInstance().hasActiveLicenceForSport(player.getId(), sportId)) {
+                    eligiblePlayers.add(player);
+                }
+            }
+        }
+        if (eligiblePlayers.isEmpty()) {
+            showError("Aucun joueur", "Aucun joueur de l'équipe n'a de licence active pour ce sport.");
+            return;
+        }
+
         Label info = new Label("Saisir les joueurs pour chaque rôle :");
 
         GridPane grid = new GridPane();
@@ -827,16 +1323,48 @@ public class CoachDashboardFrame extends Application {
         grid.setVgap(10);
 
         List<RoleInput> inputs = new ArrayList<>();
+        List<String> roles = sport.getRoles();
+        int requiredCount = sport.getNbJoueurs();
+        List<String> roleSlots = new ArrayList<>();
+        if (roles == null || roles.size() != requiredCount) {
+            for (int i = 1; i <= requiredCount; i++) {
+                roleSlots.add("Poste");
+            }
+        } else {
+            roleSlots.addAll(roles);
+        }
         Map<String, Integer> counters = new HashMap<>();
         int row = 0;
-        for (String role : sport.getRoles()) {
+        for (String role : roleSlots) {
             int slot = counters.merge(role, 1, Integer::sum);
             Label roleLabel = new Label(role + " #" + slot);
-            TextField playerField = new TextField();
-            playerField.setPromptText("playerId");
+            ComboBox<User> playerCombo = new ComboBox<>();
+            playerCombo.setItems(FXCollections.observableArrayList(eligiblePlayers));
+            playerCombo.setCellFactory(list -> new ListCell<>() {
+                @Override
+                protected void updateItem(User item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                    } else {
+                        setText(item.getName() + " (" + item.getId() + ")");
+                    }
+                }
+            });
+            playerCombo.setButtonCell(new ListCell<>() {
+                @Override
+                protected void updateItem(User item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                    } else {
+                        setText(item.getName() + " (" + item.getId() + ")");
+                    }
+                }
+            });
             grid.add(roleLabel, 0, row);
-            grid.add(playerField, 1, row);
-            inputs.add(new RoleInput(role, slot, playerField));
+            grid.add(playerCombo, 1, row);
+            inputs.add(new RoleInput(role, slot, playerCombo));
             row++;
         }
 
@@ -847,21 +1375,26 @@ public class CoachDashboardFrame extends Application {
         Label message = new Label();
         message.setStyle("-fx-text-fill: #e67e22; -fx-font-weight: bold;");
 
-        Button btnSave = new Button("✅ Enregistrer");
+        Button btnSave = new Button("Enregistrer");
         btnSave.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold;");
 
         btnSave.setOnAction(e -> {
             List<RoleAssignment> assignments = new ArrayList<>();
+            Set<String> selectedIds = new HashSet<>();
             for (RoleInput input : inputs) {
-                String playerId = input.playerField.getText().trim();
-                if (playerId.isEmpty()) {
+                User selected = input.playerCombo.getValue();
+                if (selected == null) {
                     message.setText("Tous les joueurs doivent être renseignés.");
+                    return;
+                }
+                String playerId = selected.getId();
+                if (!selectedIds.add(playerId)) {
+                    message.setText("Un joueur ne peut occuper qu'un poste.");
                     return;
                 }
                 assignments.add(new RoleAssignment(input.role, input.slotIndex, playerId));
             }
-
-            Composition composition = new Composition(match.getId(), coachClubId, assignments);
+            Composition composition = new Composition(match.getId(), teamId, assignments);
             boolean ok = compositionController.handleSaveComposition(composition);
             if (!ok) {
                 message.setText("Composition invalide ou deadline dépassée.");
@@ -884,40 +1417,57 @@ public class CoachDashboardFrame extends Application {
             clubCache = new ArrayList<>();
         }
 
-        List<Club> opponents = new ArrayList<>();
-        for (Club club : clubCache) {
-            if (club.getClubID() != coachClubId) {
-                opponents.add(club);
-            }
+        List<Team> coachTeams = getCoachTeams();
+        coachTeamCombo.setItems(javafx.collections.FXCollections.observableArrayList(coachTeams));
+        if (!coachTeams.isEmpty()) {
+            coachTeamCombo.getSelectionModel().select(coachTeams.get(0));
         }
 
-        opponentClubCombo.setItems(javafx.collections.FXCollections.observableArrayList(opponents));
+        matchTeamCache = new ArrayList<>();
+        for (Club club : clubCache) {
+            List<Team> teams = teamController.handleGetTeams(club.getClubID());
+            if (teams != null) {
+                matchTeamCache.addAll(teams);
+            }
+        }
+        refreshOpponentTeams();
     }
 
     private void refreshMatchList() {
-        if (coachClubId <= 0) {
+        Integer selectedTeamId = getSelectedCoachTeamId();
+        if (selectedTeamId == null) {
             matchTable.setItems(javafx.collections.FXCollections.observableArrayList());
             return;
         }
 
-        List<Match> matches = matchController.handleGetMatchesByClub(coachClubId);
+        List<Match> matches = matchController.handleGetAllMatches();
 
         if (matches == null) {
             matchTable.setItems(javafx.collections.FXCollections.observableArrayList());
             return;
         }
 
-        matchCache = matches;
+        List<Match> filtered = new ArrayList<>();
+        for (Match match : matches) {
+            if (match == null) {
+                continue;
+            }
+            if (match.getHomeTeamId() == selectedTeamId || match.getAwayTeamId() == selectedTeamId) {
+                filtered.add(match);
+            }
+        }
+        matchCache = filtered;
         applyMatchFilter();
 
-        if (!matches.isEmpty()) {
-            matchMessageLabel.setText("✅ " + matches.size() + " match(s) chargé(s)");
+        if (!matchCache.isEmpty()) {
+            matchMessageLabel.setText(matchCache.size() + " match(s) chargé(s)");
             matchMessageLabel.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
         }
     }
 
     private void refreshMatchRequestList() {
-        if (coachClubId <= 0) {
+        Integer selectedTeamId = getSelectedCoachTeamId();
+        if (selectedTeamId == null) {
             matchRequestTable.setItems(javafx.collections.FXCollections.observableArrayList());
             return;
         }
@@ -929,7 +1479,16 @@ public class CoachDashboardFrame extends Application {
             return;
         }
 
-        matchRequestCache = requests;
+        List<MatchRequest> filtered = new ArrayList<>();
+        for (MatchRequest request : requests) {
+            if (request == null) {
+                continue;
+            }
+            if (request.getHomeTeamId() == selectedTeamId || request.getAwayTeamId() == selectedTeamId) {
+                filtered.add(request);
+            }
+        }
+        matchRequestCache = filtered;
         applyMatchRequestFilter();
     }
 
@@ -953,7 +1512,8 @@ public class CoachDashboardFrame extends Application {
     }
 
     private void clearMatchFields() {
-        opponentClubCombo.getSelectionModel().clearSelection();
+        coachTeamCombo.getSelectionModel().clearSelection();
+        opponentTeamCombo.getSelectionModel().clearSelection();
         venueCombo.getSelectionModel().selectFirst();
         matchDatePicker.setValue(null);
         matchTimeField.clear();
@@ -993,6 +1553,8 @@ public class CoachDashboardFrame extends Application {
         eventMessageLabel.setStyle("-fx-text-fill: #7f8c8d;");
 
         eventList = new ListView<>();
+        eventList.setPrefHeight(220);
+        eventList.setMinHeight(180);
         eventList.setCellFactory(list -> new ListCell<>() {
             @Override
             protected void updateItem(Event item, boolean empty) {
@@ -1077,7 +1639,10 @@ public class CoachDashboardFrame extends Application {
 
     private void refreshEventList() {
         List<Event> events = eventController.getEventsByClub(coachClubId);
-        eventList.setItems(FXCollections.observableArrayList(events == null ? List.of() : events));
+        List<Event> safeList = events == null ? List.of() : events;
+        eventList.getSelectionModel().clearSelection();
+        eventList.setItems(FXCollections.observableArrayList(safeList));
+        eventList.refresh();
     }
 
     // ==========================================
@@ -1105,18 +1670,6 @@ public class CoachDashboardFrame extends Application {
 
         Label title = new Label("Equipement Management");
         title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
-
-        equipmentNameField = new TextField();
-        equipmentNameField.setPromptText("Nom");
-        equipmentTypeField = new TextField();
-        equipmentTypeField.setPromptText("Type");
-        equipmentConditionField = new TextField();
-        equipmentConditionField.setPromptText("État");
-        equipmentQuantityField = new TextField();
-        equipmentQuantityField.setPromptText("Quantité");
-
-        Button addBtn = new Button("Ajouter");
-        addBtn.setOnAction(e -> handleAddEquipment());
 
         equipmentMessageLabel = new Label();
         equipmentMessageLabel.setStyle("-fx-text-fill: #7f8c8d;");
@@ -1153,49 +1706,17 @@ public class CoachDashboardFrame extends Application {
                 }
             }
         });
-        Button approveBtn = new Button("Approuver");
-        approveBtn.setOnAction(e -> handleReservationStatusUpdate("APPROVED"));
-        Button rejectBtn = new Button("Refuser");
-        rejectBtn.setOnAction(e -> handleReservationStatusUpdate("REJECTED"));
-
         equipmentView.getChildren().addAll(
                 title,
-                new Label("Ajouter un équipement"),
-                equipmentNameField,
-                new HBox(10, equipmentTypeField, equipmentConditionField),
-                equipmentQuantityField,
-                addBtn,
                 equipmentMessageLabel,
                 new Separator(),
                 new Label("Liste des équipements"),
                 equipmentList,
                 new HBox(10, equipmentStartDate, equipmentEndDate, reserveBtn),
                 new Separator(),
-                new Label("Réservations du club"),
-                equipmentReservationList,
-                new HBox(10, approveBtn, rejectBtn)
+                new Label("Mes réservations"),
+                equipmentReservationList
         );
-    }
-
-    private void handleAddEquipment() {
-        int qty;
-        try {
-            qty = Integer.parseInt(equipmentQuantityField.getText().trim());
-        } catch (Exception e) {
-            equipmentMessageLabel.setText("Quantité invalide.");
-            return;
-        }
-        boolean ok = equipmentController.handleCreateEquipment(
-                equipmentNameField.getText(),
-                equipmentTypeField.getText(),
-                equipmentConditionField.getText(),
-                qty,
-                coachClubId
-        );
-        equipmentMessageLabel.setText(ok ? "Équipement ajouté." : equipmentController.getLastError());
-        if (ok) {
-            refreshEquipmentList();
-        }
     }
 
     private void handleReserveEquipment() {
@@ -1208,6 +1729,9 @@ public class CoachDashboardFrame extends Application {
         LocalDate end = equipmentEndDate.getValue();
         boolean ok = equipmentController.handleReserveEquipment(selected.getId(), currentCoach.getId(), start, end);
         equipmentMessageLabel.setText(ok ? "Réservation envoyée." : equipmentController.getLastError());
+        if (ok) {
+            refreshEquipmentReservations();
+        }
     }
 
     private void refreshEquipmentList() {
@@ -1220,25 +1744,8 @@ public class CoachDashboardFrame extends Application {
     }
 
     private void refreshEquipmentReservations() {
-        if (coachClubId <= 0) {
-            equipmentReservationList.setItems(FXCollections.observableArrayList());
-            return;
-        }
-        List<Reservation> reservations = equipmentController.handleReservationsByClub(coachClubId);
+        List<Reservation> reservations = equipmentController.handleReservationsByUser(currentCoach.getId());
         equipmentReservationList.setItems(FXCollections.observableArrayList(reservations == null ? List.of() : reservations));
-    }
-
-    private void handleReservationStatusUpdate(String status) {
-        Reservation selected = equipmentReservationList.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            equipmentMessageLabel.setText("Sélectionnez une réservation.");
-            return;
-        }
-        boolean ok = equipmentController.handleUpdateReservationStatus(selected.getId(), status);
-        equipmentMessageLabel.setText(ok ? "Statut mis à jour." : equipmentController.getLastError());
-        if (ok) {
-            refreshEquipmentReservations();
-        }
     }
 
     // ==========================================
@@ -1326,7 +1833,19 @@ public class CoachDashboardFrame extends Application {
         displayArea.getChildren().add(content);
     }
 
-    private String getOpponentName(int clubId) {
+    private String getTeamDisplayById(int teamId) {
+        if (teamId <= 0) {
+            return String.valueOf(teamId);
+        }
+        for (Team team : matchTeamCache) {
+            if (team.getId() == teamId) {
+                return team.getNom() + " (" + getClubName(team.getClubId()) + ")";
+            }
+        }
+        return String.valueOf(teamId);
+    }
+
+    private String getClubName(int clubId) {
         for (Club club : clubCache) {
             if (club.getClubID() == clubId) {
                 return club.getName();
@@ -1344,7 +1863,7 @@ public class CoachDashboardFrame extends Application {
         String q = matchRequestSearchField.getText() == null ? "" : matchRequestSearchField.getText().trim().toLowerCase();
         java.util.List<MatchRequest> filtered = new java.util.ArrayList<>();
         for (MatchRequest r : matchRequestCache) {
-            String opponent = getOpponentName(r.getOpponentClubId()).toLowerCase();
+            String opponent = getTeamDisplayById(getOpponentTeamId(r)).toLowerCase();
             String status = r.getStatus().name().toLowerCase();
             String date = formatDateTime(r.getRequestedDateTime()).toLowerCase();
             if (q.isEmpty() || opponent.contains(q) || status.contains(q) || date.contains(q)) {
@@ -1362,8 +1881,8 @@ public class CoachDashboardFrame extends Application {
         String q = matchSearchField.getText() == null ? "" : matchSearchField.getText().trim().toLowerCase();
         java.util.List<Match> filtered = new java.util.ArrayList<>();
         for (Match m : matchCache) {
-            int opponentId = m.getHomeTeamId() == coachClubId ? m.getAwayTeamId() : m.getHomeTeamId();
-            String opponent = getOpponentName(opponentId).toLowerCase();
+            int opponentId = getOpponentTeamId(m);
+            String opponent = getTeamDisplayById(opponentId).toLowerCase();
             String status = m.getStatus().name().toLowerCase();
             String date = formatDateTime(m.getDateTime()).toLowerCase();
             if (q.isEmpty() || opponent.contains(q) || status.contains(q) || date.contains(q)) {
@@ -1380,6 +1899,199 @@ public class CoachDashboardFrame extends Application {
         if (lastRefreshLabel != null) {
             lastRefreshLabel.setText("Dernière mise à jour : " + formatDateTime(LocalDateTime.now()));
         }
+    }
+
+    private void createLicenceView() {
+        licenceView = new VBox(20);
+        licenceView.setPadding(new Insets(30));
+
+        Label title = new Label("Ma Licence Sportive");
+        title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+
+        licenceStatusBox = new VBox(10);
+        licenceStatusBox.setPadding(new Insets(15));
+        licenceStatusBox.setStyle("-fx-background-color: white; -fx-background-radius: 10; -fx-border-color: #dcdde1;");
+
+        VBox formBox = new VBox(15);
+        formBox.setPadding(new Insets(20));
+        formBox.setStyle("-fx-background-color: #ecf0f1; -fx-background-radius: 10;");
+
+        Label formTitle = new Label("Nouvelle demande de licence");
+        formTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
+
+        ComboBox<TypeSport> sportCombo = new ComboBox<>();
+        sportCombo.setPromptText("Sélectionnez un sport");
+        sportCombo.setMaxWidth(Double.MAX_VALUE);
+
+        try {
+            List<TypeSport> sports = TypeSportFacade.getInstance().getAllTypeSports();
+            sportCombo.setItems(FXCollections.observableArrayList(sports));
+        } catch (Exception e) {
+            System.err.println("Erreur chargement sports : " + e.getMessage());
+        }
+
+        ComboBox<TypeLicence> typeCombo = new ComboBox<>(FXCollections.observableArrayList(TypeLicence.values()));
+        typeCombo.setPromptText("Type (COACH...)");
+        typeCombo.setMaxWidth(Double.MAX_VALUE);
+        typeCombo.getSelectionModel().select(TypeLicence.COACH);
+
+        Button btnUpload = new Button("Joindre Certificat Médical");
+        styleButton(btnUpload, "#95a5a6");
+        btnUpload.setOnAction(e -> {
+            documentAttached = true;
+            btnUpload.setText("Certificat Médical Joint");
+            btnUpload.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+        });
+
+        Button submitBtn = new Button("Envoyer la demande");
+        styleButton(submitBtn, "#2ecc71");
+
+        submitBtn.setOnAction(e -> {
+            TypeSport selectedSport = sportCombo.getValue();
+            TypeLicence selectedType = typeCombo.getValue();
+
+            if (selectedSport == null || selectedType == null || !documentAttached) {
+                showError("Documents manquants", "Veuillez remplir tous les champs et joindre votre certificat.");
+                return;
+            }
+
+            try {
+                licenceController.onDemandeLicence(selectedSport, selectedType);
+                documentAttached = false;
+                btnUpload.setText("Joindre Certificat Médical");
+                btnUpload.setStyle("-fx-background-color: #95a5a6; -fx-text-fill: white;");
+                refreshLicenceInfo();
+                showInfo("Succès", "Votre demande a été enregistrée (Statut: En attente).");
+            } catch (Exception ex) {
+                showError("Demande refusée", ex.getMessage());
+            }
+        });
+
+        formBox.getChildren().addAll(formTitle, new Label("Discipline :"), sportCombo, new Label("Type :"), typeCombo, btnUpload, submitBtn);
+
+        ScrollPane scrollPane = new ScrollPane(licenceStatusBox);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefHeight(320);
+        scrollPane.setMinHeight(280);
+
+        licenceView.getChildren().addAll(title, new Label("Historique de vos licences :"), scrollPane, new Separator(), formBox);
+    }
+
+    private void refreshLicenceInfo() {
+        licenceStatusBox.getChildren().clear();
+        List<Licence> licences = LicenceFacade.getInstance().getLicencesByMembre(currentCoach.getId());
+        if (licences == null || licences.isEmpty()) {
+            Label empty = new Label("Aucune licence enregistrée.");
+            empty.setStyle("-fx-text-fill: #7f8c8d;");
+            licenceStatusBox.getChildren().add(empty);
+            return;
+        }
+
+        for (Licence l : licences) {
+            HBox row = new HBox(10);
+            row.setPadding(new Insets(8));
+            row.setStyle("-fx-background-color: #f7f7f7; -fx-background-radius: 6;");
+
+            String sportName = l.getSport() == null ? "" : l.getSport().getNom();
+            Label sportLabel = new Label(sportName + " (" + l.getTypeLicence() + ")");
+            Label statusLabel = new Label(l.getStatut().name());
+            String color = "#7f8c8d";
+            if (l.getStatut() == StatutLicence.ACTIVE) color = "#27ae60";
+            if (l.getStatut() == StatutLicence.REFUSEE) color = "#c0392b";
+            statusLabel.setStyle("-fx-text-fill: " + color + "; -fx-font-weight: bold;");
+
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+
+            row.getChildren().addAll(sportLabel, spacer, statusLabel);
+            licenceStatusBox.getChildren().add(row);
+        }
+    }
+
+    private Integer getSelectedCoachTeamId() {
+        Team selected = coachTeamCombo != null ? coachTeamCombo.getValue() : null;
+        return selected != null ? selected.getId() : null;
+    }
+
+    private List<Integer> getCoachTeamIds() {
+        List<Team> teams = getCoachTeams();
+        List<Integer> ids = new ArrayList<>();
+        for (Team team : teams) {
+            if (team != null) {
+                ids.add(team.getId());
+            }
+        }
+        return ids;
+    }
+
+    private int getOpponentTeamId(Match match) {
+        if (match == null) {
+            return -1;
+        }
+        Integer selectedTeamId = getSelectedCoachTeamId();
+        if (selectedTeamId != null && match.getHomeTeamId() == selectedTeamId) {
+            return match.getAwayTeamId();
+        }
+        if (selectedTeamId != null && match.getAwayTeamId() == selectedTeamId) {
+            return match.getHomeTeamId();
+        }
+        return -1;
+    }
+
+    private boolean isCoachHome(Match match) {
+        Integer selectedTeamId = getSelectedCoachTeamId();
+        return match != null && selectedTeamId != null && match.getHomeTeamId() == selectedTeamId;
+    }
+
+    private int getOpponentTeamId(MatchRequest request) {
+        if (request == null) {
+            return -1;
+        }
+        Integer selectedTeamId = getSelectedCoachTeamId();
+        if (selectedTeamId != null && request.getHomeTeamId() == selectedTeamId) {
+            return request.getAwayTeamId();
+        }
+        if (selectedTeamId != null && request.getAwayTeamId() == selectedTeamId) {
+            return request.getHomeTeamId();
+        }
+        return -1;
+    }
+
+    private int getCoachTeamIdForMatch(Match match) {
+        if (match == null) {
+            return -1;
+        }
+        Integer selectedTeamId = getSelectedCoachTeamId();
+        if (selectedTeamId != null && match.getHomeTeamId() == selectedTeamId) {
+            return match.getHomeTeamId();
+        }
+        if (selectedTeamId != null && match.getAwayTeamId() == selectedTeamId) {
+            return match.getAwayTeamId();
+        }
+        return -1;
+    }
+
+    private void refreshOpponentTeams() {
+        Team coachTeam = coachTeamCombo.getValue();
+        if (coachTeam == null) {
+            opponentTeamCombo.setItems(javafx.collections.FXCollections.observableArrayList());
+            return;
+        }
+        Integer sportId = coachTeam.getTypeSportId();
+        List<Team> opponents = new ArrayList<>();
+        for (Team team : matchTeamCache) {
+            if (team == null || team.getId() == coachTeam.getId()) {
+                continue;
+            }
+            if (sportId != null && sportId > 0) {
+                Integer teamSportId = team.getTypeSportId();
+                if (teamSportId == null || !sportId.equals(teamSportId)) {
+                    continue;
+                }
+            }
+            opponents.add(team);
+        }
+        opponentTeamCombo.setItems(javafx.collections.FXCollections.observableArrayList(opponents));
     }
 
     private LocalTime parseTime(String value) {
@@ -1411,6 +2123,18 @@ public class CoachDashboardFrame extends Application {
         alert.showAndWait();
     }
 
+    private void showInfo(String title, String content) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    private void styleButton(Button btn, String color) {
+        btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 25; -fx-background-radius: 5; -fx-cursor: hand;");
+    }
+
     private VBox createCoachPlaceholder(String titleText, String bodyText) {
         VBox view = new VBox(12);
         view.setPadding(new Insets(30));
@@ -1436,12 +2160,12 @@ public class CoachDashboardFrame extends Application {
     private static class RoleInput {
         private final String role;
         private final int slotIndex;
-        private final TextField playerField;
+        private final ComboBox<User> playerCombo;
 
-        private RoleInput(String role, int slotIndex, TextField playerField) {
+        private RoleInput(String role, int slotIndex, ComboBox<User> playerCombo) {
             this.role = role;
             this.slotIndex = slotIndex;
-            this.playerField = playerField;
+            this.playerCombo = playerCombo;
         }
     }
 }

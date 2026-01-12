@@ -2,6 +2,7 @@ package com.sportify.manager.services;
 
 import com.sportify.manager.dao.CompositionDAO;
 import com.sportify.manager.dao.MatchDAO;
+import com.sportify.manager.dao.PostgresUserDAO;
 import com.sportify.manager.persistence.AbstractFactory;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -43,16 +44,23 @@ public class CompositionManager {
                 return false;
             }
 
-            // 2) Récupérer le TypeSport pour validation
             TypeSport typeSport = typeSportManager.getTypeSportById(sportId);
             if (typeSport == null) return false;
 
-            // 3) Validation métier (nombre de joueurs, rôles, etc.)
+            for (RoleAssignment a : composition.getAssignments()) {
+                String playerId = a.getPlayerId();
+                if (playerId == null || playerId.isBlank()) {
+                    return false;
+                }
+                if (!PostgresUserDAO.getInstance().hasActiveLicenceForSport(playerId.trim(), sportId)) {
+                    return false;
+                }
+            }
+
             if (!validateComposition(composition.getAssignments(), typeSport)) {
                 return false;
             }
 
-            // 4) Persistance via CompositionDAO
             return compositionDAO.saveComposition(
                     composition.getMatchId(),
                     composition.getTeamId(),

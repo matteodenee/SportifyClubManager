@@ -32,20 +32,20 @@ public class LoginFrame extends Application {
         }
         loginController.setLoginFrame(this);
 
-        // --- DESIGN DU CONTAINER PRINCIPAL ---
+
         VBox root = new VBox(20);
         root.setAlignment(Pos.CENTER);
         root.setPadding(new Insets(40));
         root.setStyle("-fx-background-color: #2c3e50;"); // Fond sombre cohérent
 
-        // --- LOGO / TITRE ---
+
         Label titleLabel = new Label("SPORTIFY");
         titleLabel.setStyle("-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold; -fx-letter-spacing: 2px;");
 
         Label subTitle = new Label("Club Management System");
         subTitle.setStyle("-fx-text-fill: #bdc3c7; -fx-font-size: 14px;");
 
-        // --- FORMULAIRE ---
+
         VBox formBox = new VBox(15);
         formBox.setMaxWidth(300);
         formBox.setAlignment(Pos.CENTER);
@@ -122,7 +122,9 @@ public class LoginFrame extends Application {
     public void openCoachDashboard(User user) {
         try {
             CoachDashboardFrame coachFrame = new CoachDashboardFrame(user);
-            coachFrame.start(new Stage());
+            Stage stage = new Stage();
+            stage.setMaximized(true);
+            coachFrame.start(stage);
             closeCurrentStage();
         } catch (Exception e) { e.printStackTrace(); }
     }
@@ -133,7 +135,9 @@ public class LoginFrame extends Application {
             ClubController clubController = new ClubController(connection);
             AdminDashboardFrame adminDashboardFrame = new AdminDashboardFrame();
             adminDashboardFrame.setClubController(clubController);
-            adminDashboardFrame.start(new Stage());
+            Stage stage = new Stage();
+            stage.setMaximized(true);
+            adminDashboardFrame.start(stage);
             closeCurrentStage();
         } catch (Exception e) { e.printStackTrace(); }
     }
@@ -144,7 +148,9 @@ public class LoginFrame extends Application {
             ClubController clubController = new ClubController(connection);
             DirectorDashboardFrame directorFrame = new DirectorDashboardFrame(user);
             directorFrame.setClubController(clubController);
-            directorFrame.start(new Stage());
+            Stage stage = new Stage();
+            stage.setMaximized(true);
+            directorFrame.start(stage);
             closeCurrentStage();
         } catch (Exception e) { e.printStackTrace(); }
     }
@@ -155,7 +161,9 @@ public class LoginFrame extends Application {
             ClubController clubController = new ClubController(connection);
             MemberDashboardFrame memberFrame = new MemberDashboardFrame(user);
             memberFrame.setClubController(clubController);
-            memberFrame.start(new Stage());
+            Stage stage = new Stage();
+            stage.setMaximized(true);
+            memberFrame.start(stage);
             closeCurrentStage();
         } catch (Exception e) { e.printStackTrace(); }
     }

@@ -42,6 +42,36 @@ public class PostgresTrainingDAO implements TrainingDAO {
     }
 
     @Override
+    public boolean update(Training entrainement) {
+        String sql = "UPDATE entrainements SET date = ?, heure = ?, lieu = ?, activite = ?, clubid = ?, team_id = ? WHERE id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setDate(1, Date.valueOf(entrainement.getDate()));
+            stmt.setTime(2, Time.valueOf(entrainement.getHeure()));
+            stmt.setString(3, entrainement.getLieu());
+            stmt.setString(4, entrainement.getActivite());
+            stmt.setInt(5, entrainement.getClubId());
+            stmt.setObject(6, entrainement.getTeamId() > 0 ? entrainement.getTeamId() : null);
+            stmt.setInt(7, entrainement.getId());
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Erreur SQL lors de la mise a jour d'un entrainement: " + e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
+    public boolean delete(int entrainementId) {
+        String sql = "DELETE FROM entrainements WHERE id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, entrainementId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Erreur SQL lors de la suppression d'un entrainement: " + e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
     public List<Training> getUpcomingByClub(int clubId, LocalDate fromDate) {
         List<Training> results = new ArrayList<>();
         LocalDate start = (fromDate == null) ? LocalDate.now() : fromDate;

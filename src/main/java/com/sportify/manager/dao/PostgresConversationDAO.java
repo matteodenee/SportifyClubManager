@@ -19,19 +19,26 @@ public class PostgresConversationDAO implements ConversationDAO {
     }
 
     @Override
-    public long ensureGlobalConversation() {
+    public long ensureGlobalConversation(int clubId) {
+        if (clubId <= 0) {
+            return -1;
+        }
         try {
-            String select = "SELECT id FROM conversation WHERE type='GLOBAL' AND name='GLOBAL'";
+            String select = "SELECT id FROM conversation WHERE type='GLOBAL' AND name='GLOBAL' AND club_id = ?";
             try (PreparedStatement ps = connection.prepareStatement(select);
-                 ResultSet rs = ps.executeQuery()) {
+                 ) {
+                ps.setInt(1, clubId);
+                ResultSet rs = ps.executeQuery();
                 if (rs.next()) {
                     return rs.getLong(1);
                 }
             }
 
-            String insert = "INSERT INTO conversation(name,type,created_by) VALUES ('GLOBAL','GLOBAL',NULL) RETURNING id";
+            String insert = "INSERT INTO conversation(name,type,created_by,club_id) VALUES ('GLOBAL','GLOBAL',NULL,?) RETURNING id";
             try (PreparedStatement ps = connection.prepareStatement(insert);
-                 ResultSet rs = ps.executeQuery()) {
+                 ) {
+                ps.setInt(1, clubId);
+                ResultSet rs = ps.executeQuery();
                 rs.next();
                 return rs.getLong(1);
             }
@@ -42,15 +49,19 @@ public class PostgresConversationDAO implements ConversationDAO {
     }
 
     @Override
-    public long createGroup(String groupName, String creatorId) {
+    public long createGroup(String groupName, String creatorId, int clubId) {
         if (groupName == null || groupName.isBlank()) {
             throw new IllegalArgumentException("Nom du groupe invalide.");
         }
+        if (clubId <= 0) {
+            throw new IllegalArgumentException("Club invalide.");
+        }
         try {
-            String sql = "INSERT INTO conversation(name,type,created_by) VALUES (?, 'GROUP', ?) RETURNING id";
+            String sql = "INSERT INTO conversation(name,type,created_by,club_id) VALUES (?, 'GROUP', ?, ?) RETURNING id";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
                 ps.setString(1, groupName.trim());
                 ps.setString(2, creatorId);
+                ps.setInt(3, clubId);
                 try (ResultSet rs = ps.executeQuery()) {
                     rs.next();
                     return rs.getLong(1);
@@ -95,18 +106,22 @@ public class PostgresConversationDAO implements ConversationDAO {
     }
 
     @Override
-    public List<NetConversation> listUserConversations(String userId) {
+    public List<NetConversation> listUserConversations(String userId, int clubId) {
         List<NetConversation> out = new ArrayList<>();
+        if (clubId <= 0) {
+            return out;
+        }
         try {
             String sql =
                     "SELECT conv.id, conv.name, conv.type " +
                             "FROM conversation conv " +
                             "JOIN conversation_participant p ON p.conversation_id = conv.id " +
-                            "WHERE p.user_id = ? " +
+                            "WHERE p.user_id = ? AND conv.club_id = ? " +
                             "ORDER BY CASE conv.type WHEN 'GLOBAL' THEN 0 ELSE 1 END, conv.name ASC";
 
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
                 ps.setString(1, userId);
+                ps.setInt(2, clubId);
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         out.add(new NetConversation(
@@ -124,11 +139,12 @@ public class PostgresConversationDAO implements ConversationDAO {
     }
 
     @Override
-    public NetConversation getConversationById(long conversationId) {
+    public NetConversation getConversationById(long conversationId, int clubId) {
         try {
-            String sql = "SELECT id,name,type FROM conversation WHERE id=?";
+            String sql = "SELECT id,name,type FROM conversation WHERE id=? AND club_id = ?";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
                 ps.setLong(1, conversationId);
+                ps.setInt(2, clubId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.next()) {
                         return null;

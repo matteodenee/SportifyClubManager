@@ -9,8 +9,8 @@ public class ClubFacade {
         clubManager = new ClubManager();
     }
 
-    public void createClub(String name, String description, int sportId, String type, String meetingSchedule, int maxCapacity) {
+    public void createClub(String name, String description, int sportId, String type, int maxCapacity, String managerId) {
         // Transmission au manager
-        clubManager.createClub(name, description, sportId, type, meetingSchedule, maxCapacity);
+        clubManager.createClub(name, description, sportId, type, maxCapacity, managerId);
     }
 }

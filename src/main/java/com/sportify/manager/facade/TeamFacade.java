@@ -51,4 +51,8 @@ public class TeamFacade {
     public List<User> getPlayersByTeam(int teamId) throws Exception {
         return teamManager.getPlayersByTeam(teamId);
     }
+
+    public List<Team> getTeamsByMember(String userId) throws Exception {
+        return teamManager.getTeamsByMember(userId);
+    }
 }

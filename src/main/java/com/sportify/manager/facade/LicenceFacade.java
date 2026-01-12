@@ -20,9 +20,7 @@ public class LicenceFacade {
         return instance;
     }
 
-    // ==========================
-    // DEMANDE DE LICENCE (MEMBRE)
-    // ==========================
+
     public void demanderLicence(Licence licence) {
         // On passe par le Manager pour la logique métier
         LicenceManager.getLicenceManager().demanderLicence(licence);
@@ -31,7 +29,7 @@ public class LicenceFacade {
     // ==========================
     // VALIDATION / REFUS (ADMIN)
     // ==========================
-    // Cette méthode correspond maintenant exactement à l'appel dans ton Dashboard
+
     public void validerLicence(String licenceId, boolean accepter, String commentaire) {
         LicenceManager.getLicenceManager().validerLicence(licenceId, accepter, commentaire);
     }

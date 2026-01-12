@@ -9,10 +9,9 @@ public class TypeSportManager {
     private static TypeSportManager instance;
     private final TypeSportDAO typeSportDAO;
 
-    // Passage en privé pour le Singleton et utilisation de la Factory
+
     private TypeSportManager() {
-        // Au lieu de "new PostgresTypeSportDAO", on demande à la factory
-        // Cela respecte ton architecture "Abstract Factory"
+
         this.typeSportDAO = AbstractFactory.getFactory().createTypeSportDAO();
     }
 

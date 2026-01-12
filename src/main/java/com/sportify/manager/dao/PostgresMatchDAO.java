@@ -9,12 +9,10 @@ import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
-/**
- * Implémentation Postgres pour la gestion des matchs.
- * Intègre la génération automatique de statistiques.
- */
-public class PostgresMatchDAO implements MatchDAO { // Changé extends MatchDAO en implements MatchDAO
+
+public class PostgresMatchDAO implements MatchDAO {
 
     private final Connection con;
 
@@ -24,7 +22,7 @@ public class PostgresMatchDAO implements MatchDAO { // Changé extends MatchDAO 
 
     @Override
     public Match create(Match m) throws SQLException {
-        // Note: La table doit s'appeler 'matchs' selon le code de ton ami
+
         String sql = "INSERT INTO matchs(type_sport_id, home_team_id, away_team_id, datetime, location, referee, composition_deadline, status) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
@@ -69,7 +67,7 @@ public class PostgresMatchDAO implements MatchDAO { // Changé extends MatchDAO 
 
             // --- ADAPTATION LOGIQUE STATS ---
             // Si le match est marqué comme FINISHED, on crée les SmallEvents
-            if (m.getStatus() == MatchStatus.FINISHED && m.getHomeScore() != null) {
+            if (m.getStatus() == MatchStatus.FINISHED && m.getHomeScore() != null && m.getAwayScore() != null) {
                 generateStatsAfterMatch(m);
             }
         }
@@ -77,22 +75,81 @@ public class PostgresMatchDAO implements MatchDAO { // Changé extends MatchDAO 
 
     private void generateStatsAfterMatch(Match m) throws SQLException {
         PostgresStatDAO statDAO = new PostgresStatDAO(con);
-        Timestamp now = new Timestamp(System.currentTimeMillis());
+        Timestamp now = Timestamp.valueOf(m.getDateTime());
         String period = "Saison " + m.getDateTime().getYear();
 
-        // Stat pour l'équipe à domicile
+        statDAO.deleteEventsByMatch(m.getId());
+
         String resultHome = (m.getHomeScore() > m.getAwayScore()) ? "VICTOIRE" :
                 (m.getHomeScore() < m.getAwayScore()) ? "DEFAITE" : "NUL";
 
-        statDAO.addSmallEvent(new SmallEvent(0, "MATCH", "Match joué", m.getHomeTeamId(), null, now, period));
-        statDAO.addSmallEvent(new SmallEvent(0, resultHome, "Résultat final", m.getHomeTeamId(), null, now, period));
+        statDAO.addSmallEvent(new SmallEvent(0, "MATCH", "Match joué", m.getHomeTeamId(), null, now, period, m.getId()));
+        statDAO.addSmallEvent(new SmallEvent(0, resultHome, "Résultat final", m.getHomeTeamId(), null, now, period, m.getId()));
 
-        // Stat pour l'équipe à l'extérieur
+        for (int i = 0; i < m.getHomeScore(); i++) {
+            String playerId = getRandomPlayerId(m.getHomeTeamId());
+            statDAO.addSmallEvent(new SmallEvent(0, "GOAL", "But marqué", m.getHomeTeamId(), playerId, now, period, m.getId()));
+        }
+
         String resultAway = (m.getAwayScore() > m.getHomeScore()) ? "VICTOIRE" :
                 (m.getAwayScore() < m.getHomeScore()) ? "DEFAITE" : "NUL";
 
-        statDAO.addSmallEvent(new SmallEvent(0, "MATCH", "Match joué", m.getAwayTeamId(), null, now, period));
-        statDAO.addSmallEvent(new SmallEvent(0, resultAway, "Résultat final", m.getAwayTeamId(), null, now, period));
+        statDAO.addSmallEvent(new SmallEvent(0, "MATCH", "Match joué", m.getAwayTeamId(), null, now, period, m.getId()));
+        statDAO.addSmallEvent(new SmallEvent(0, resultAway, "Résultat final", m.getAwayTeamId(), null, now, period, m.getId()));
+
+        for (int i = 0; i < m.getAwayScore(); i++) {
+            String playerId = getRandomPlayerId(m.getAwayTeamId());
+            statDAO.addSmallEvent(new SmallEvent(0, "GOAL", "But marqué", m.getAwayTeamId(), playerId, now, period, m.getId()));
+        }
+
+        List<String> stats = getSportStatNames(m.getTypeSportId());
+        if (!stats.isEmpty()) {
+            Random random = new Random();
+            for (String stat : stats) {
+                String upper = stat == null ? "" : stat.toUpperCase();
+                if (upper.equals("MATCH") || upper.equals("VICTOIRE") || upper.equals("DEFAITE")
+                        || upper.equals("NUL") || upper.equals("GOAL") || upper.equals("BUT")) {
+                    continue;
+                }
+                int homeCount = random.nextInt(3);
+                int awayCount = random.nextInt(3);
+                for (int i = 0; i < homeCount; i++) {
+                    String playerId = getRandomPlayerId(m.getHomeTeamId());
+                    statDAO.addSmallEvent(new SmallEvent(0, stat, "Évènement", m.getHomeTeamId(), playerId, now, period, m.getId()));
+                }
+                for (int i = 0; i < awayCount; i++) {
+                    String playerId = getRandomPlayerId(m.getAwayTeamId());
+                    statDAO.addSmallEvent(new SmallEvent(0, stat, "Évènement", m.getAwayTeamId(), playerId, now, period, m.getId()));
+                }
+            }
+        }
+    }
+
+    private List<String> getSportStatNames(int sportId) throws SQLException {
+        List<String> stats = new ArrayList<>();
+        String sql = "SELECT stat_name FROM sport_stats WHERE sport_id = ? ORDER BY stat_name";
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, sportId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    stats.add(rs.getString("stat_name"));
+                }
+            }
+        }
+        return stats;
+    }
+
+    private String getRandomPlayerId(int teamId) throws SQLException {
+        String sql = "SELECT id_user FROM team_member WHERE id_team = ? ORDER BY random() LIMIT 1";
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, teamId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("id_user");
+                }
+            }
+        }
+        return null;
     }
 
     @Override
@@ -119,7 +176,11 @@ public class PostgresMatchDAO implements MatchDAO { // Changé extends MatchDAO 
     @Override
     public List<Match> getByClub(int clubId) throws SQLException {
         List<Match> list = new ArrayList<>();
-        String sql = "SELECT * FROM matchs WHERE home_team_id = ? OR away_team_id = ? ORDER BY datetime DESC";
+        String sql = "SELECT m.* FROM matchs m " +
+                "JOIN team th ON m.home_team_id = th.id_team " +
+                "JOIN team ta ON m.away_team_id = ta.id_team " +
+                "WHERE th.clubid = ? OR ta.clubid = ? " +
+                "ORDER BY m.datetime DESC";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, clubId);
             ps.setInt(2, clubId);

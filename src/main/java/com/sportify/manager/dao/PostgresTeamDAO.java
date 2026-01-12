@@ -138,6 +138,22 @@ public class PostgresTeamDAO implements TeamDAO {
         return players;
     }
 
+    @Override
+    public List<Team> findAllByMemberId(String userId) throws Exception {
+        List<Team> teams = new ArrayList<>();
+        String sql = "SELECT t.* FROM team t " +
+                "JOIN team_member tm ON t.id_team = tm.id_team " +
+                "WHERE tm.id_user = ? ORDER BY t.nom";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                teams.add(mapResultSetToTeam(rs));
+            }
+        }
+        return teams;
+    }
+
     private Team mapResultSetToTeam(ResultSet rs) throws SQLException {
         String coachId = rs.getString("coach_id");
 

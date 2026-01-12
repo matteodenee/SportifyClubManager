@@ -89,6 +89,9 @@ public final class CommunicationFacade implements NetworkEventSink {
             fireError("Aucune conversation sélectionnée.");
             return;
         }
+        if (!ensureConnected()) {
+            return;
+        }
         try {
             client.send(new SendMessageRequest(selectedConversationId, text));
         } catch (IOException ex) {
@@ -96,15 +99,21 @@ public final class CommunicationFacade implements NetworkEventSink {
         }
     }
 
-    public void createGroup(String name) {
+    public void createGroup(String name, List<String> memberIds) {
+        if (!ensureConnected()) {
+            return;
+        }
         try {
-            client.send(new CreateGroupRequest(name));
+            client.send(new CreateGroupRequest(name, memberIds));
         } catch (IOException ex) {
             fireError("Erreur création groupe: " + ex.getMessage());
         }
     }
 
     public void joinConversation(long conversationId) {
+        if (!ensureConnected()) {
+            return;
+        }
         try {
             client.send(new JoinConversationRequest(conversationId));
         } catch (IOException ex) {
@@ -143,5 +152,13 @@ public final class CommunicationFacade implements NetworkEventSink {
         for (var l : listeners) {
             l.onError(msg);
         }
+    }
+
+    private boolean ensureConnected() {
+        if (client == null || !client.isConnected()) {
+            fireError("Connexion chat non établie.");
+            return false;
+        }
+        return true;
     }
 }

@@ -3,9 +3,9 @@ package com.sportify.manager.services;
 public class User {
     private String id;
     private String pwd;
-    private String name;  // Ajouté selon le diagramme
-    private String email; // Ajouté selon le diagramme
-    private String role;  // Pour gérer Admin, Director, Coach, Member
+    private String name;
+    private String email;
+    private String role;
 
     // Constructeur complet pour le login et la gestion
     public User(String id, String pwd, String name, String email, String role) {

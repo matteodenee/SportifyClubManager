@@ -7,10 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Manager pour la gestion des événements.
- * Pattern Singleton avec gestion d'erreurs.
- */
+
 public class EventManager {
     private static EventManager instance;
     private final EventDAO eventDAO;
@@ -27,16 +24,12 @@ public class EventManager {
         return instance;
     }
 
-    /**
-     * Récupère la dernière erreur.
-     */
+
     public String getLastError() {
         return lastError;
     }
 
-    /**
-     * Crée un nouvel événement.
-     */
+
     public boolean createEvent(String nom, String description, LocalDateTime dateDebut,
                                int dureeMinutes, String lieu, String type,
                                int clubId, String createurId) {
@@ -68,9 +61,7 @@ public class EventManager {
         }
     }
 
-    /**
-     * Récupère un événement par son ID.
-     */
+
     public Event getEventById(int eventId) {
         try {
             Event event = eventDAO.findById(eventId);
@@ -82,9 +73,7 @@ public class EventManager {
         }
     }
 
-    /**
-     * Récupère tous les événements d'un club.
-     */
+
     public List<Event> getEventsByClub(int clubId) {
         try {
             List<Event> events = eventDAO.findAllByClubId(clubId);
@@ -96,9 +85,7 @@ public class EventManager {
         }
     }
 
-    /**
-     * Récupère tous les événements créés par un utilisateur.
-     */
+
     public List<Event> getEventsByCreator(String createurId) {
         try {
             List<Event> events = eventDAO.findAllByCreatorId(createurId);
@@ -110,9 +97,7 @@ public class EventManager {
         }
     }
 
-    /**
-     * Récupère tous les événements entre deux dates.
-     */
+
     public List<Event> getEventsByDateRange(LocalDateTime start, LocalDateTime end) {
         try {
             List<Event> events = eventDAO.findByDateRange(start, end);
@@ -124,9 +109,7 @@ public class EventManager {
         }
     }
 
-    /**
-     * Met à jour un événement.
-     */
+
     public boolean updateEvent(int eventId, String nom, String description,
                                LocalDateTime dateDebut, int dureeMinutes,
                                String lieu, String type) {
@@ -153,9 +136,8 @@ public class EventManager {
         }
     }
 
-    /**
-     * Supprime un événement.
-     */
+
+
     public boolean deleteEvent(int eventId) {
         try {
             eventDAO.delete(eventId);
@@ -167,9 +149,8 @@ public class EventManager {
         }
     }
 
-    /**
-     * Gère la participation d'un utilisateur à un événement (RSVP).
-     */
+
+
     public boolean rsvpToEvent(int eventId, String userId, String status) {
         try {
             if (!status.equals("GOING") && !status.equals("NOT_GOING") && !status.equals("MAYBE")) {
@@ -186,9 +167,8 @@ public class EventManager {
         }
     }
 
-    /**
-     * Récupère tous les participants d'un événement.
-     */
+
+
     public Map<String, String> getEventParticipants(int eventId) {
         try {
             Map<String, String> participants = eventDAO.getParticipants(eventId);
@@ -200,9 +180,8 @@ public class EventManager {
         }
     }
 
-    /**
-     * Récupère tous les événements auxquels un utilisateur participe.
-     */
+
+
     public List<Event> getEventsByParticipant(String userId) {
         try {
             List<Event> events = eventDAO.findByParticipant(userId);

@@ -3,15 +3,11 @@ package com.sportify.manager.controllers;
 import com.sportify.manager.facade.TrainingFacade;
 import com.sportify.manager.frame.CoachDashboardFrame;
 import com.sportify.manager.services.Training;
-import com.sportify.manager.services.ParticipationStatus;
-import com.sportify.manager.services.User;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.Map;
-import com.sportify.manager.dao.TrainingDAO;
 
 public class TrainingController {
 
@@ -34,19 +30,21 @@ public class TrainingController {
         String location = coachDashboard.getTrainingLocation();
         String activity = coachDashboard.getTrainingActivity();
         Integer clubId = parseClubId(coachDashboard.getClubId());
+        int teamId = coachDashboard.getTrainingTeamId();
 
-        if (date == null || time == null || clubId == null) {
-            coachDashboard.showTrainingError("Veuillez renseigner une date, une heure et un club ID valides.");
+        if (date == null || time == null || clubId == null || teamId <= 0) {
+            coachDashboard.showTrainingError("Veuillez renseigner une date, une heure et une équipe valides.");
             return;
         }
 
-        boolean created = trainingFacade.createTraining(date, time, location, activity, clubId);
+        boolean created = trainingFacade.createTraining(date, time, location, activity, clubId, teamId);
         if (created) {
-            coachDashboard.showTrainingSuccess("✅ Entrainement planifié avec succès.");
+            coachDashboard.showTrainingSuccess("Entrainement planifié avec succès.");
             coachDashboard.clearTrainingForm();
+            coachDashboard.resetTrainingFilter();
             onRefresh();
         } else {
-            coachDashboard.showTrainingError("❌ Création impossible (vérifiez les champs et la date).");
+            coachDashboard.showTrainingError("Création impossible (vérifiez les champs et la date).");
         }
     }
 
@@ -60,46 +58,64 @@ public class TrainingController {
             return;
         }
         LocalDate fromDate = coachDashboard.getFromDate();
-        List<Training> trainings = trainingFacade.listUpcoming(clubId, fromDate);
+        int teamId = coachDashboard.getTrainingFilterTeamId();
+        List<Training> trainings = teamId > 0
+                ? trainingFacade.listUpcomingByTeam(teamId, fromDate)
+                : trainingFacade.listUpcoming(clubId, fromDate);
+        if (teamId > 0 && (trainings == null || trainings.isEmpty())) {
+            trainings = trainingFacade.listUpcoming(clubId, fromDate);
+        }
         coachDashboard.setTrainings(trainings);
-        onLoadParticipation();
     }
 
-    public void onMarkParticipation() {
+    public void onUpdate() {
         if (coachDashboard == null) {
             return;
         }
-        int entrainementId = coachDashboard.getSelectedTrainingId();
-        if (entrainementId <= 0) {
-            coachDashboard.showTrainingError("❌ Sélectionnez un entrainement.");
+        int trainingId = coachDashboard.getSelectedTrainingId();
+        if (trainingId <= 0) {
+            coachDashboard.showTrainingError("Sélectionnez un entrainement a modifier.");
             return;
         }
-        String userId = coachDashboard.getParticipationUserId();
-        if (userId == null || userId.isBlank()) {
-            coachDashboard.showTrainingError("❌ User ID requis pour la participation.");
+        LocalDate date = coachDashboard.getTrainingDate();
+        LocalTime time = parseTime(coachDashboard.getTrainingTime());
+        String location = coachDashboard.getTrainingLocation();
+        String activity = coachDashboard.getTrainingActivity();
+        Integer clubId = parseClubId(coachDashboard.getClubId());
+        int teamId = coachDashboard.getTrainingTeamId();
+        if (date == null || time == null || clubId == null || teamId <= 0) {
+            coachDashboard.showTrainingError("Veuillez renseigner une date, une heure et une equipe valides.");
             return;
         }
-        ParticipationStatus status = coachDashboard.getSelectedStatus();
-        boolean updated = trainingFacade.markParticipation(entrainementId, userId, status);
+        boolean updated = trainingFacade.updateTraining(trainingId, date, time, location, activity, clubId, teamId);
         if (updated) {
-            coachDashboard.showTrainingSuccess("✅ Participation mise à jour.");
-            onLoadParticipation();
+            coachDashboard.showTrainingSuccess("Entrainement modifie avec succes.");
+            coachDashboard.clearTrainingForm();
+            coachDashboard.resetTrainingFilter();
+            onRefresh();
         } else {
-            coachDashboard.showTrainingError("❌ Impossible de mettre à jour la participation.");
+            coachDashboard.showTrainingError("Modification impossible.");
         }
     }
 
-    public void onLoadParticipation() {
+    public void onDelete() {
         if (coachDashboard == null) {
             return;
         }
-        int entrainementId = coachDashboard.getSelectedTrainingId();
-        if (entrainementId <= 0) {
-            coachDashboard.clearParticipation();
+        int trainingId = coachDashboard.getSelectedTrainingId();
+        if (trainingId <= 0) {
+            coachDashboard.showTrainingError("Selectionnez un entrainement a supprimer.");
             return;
         }
-        Map<User, ParticipationStatus> participation = trainingFacade.getParticipation(entrainementId);
-        coachDashboard.setParticipation(participation);
+        boolean deleted = trainingFacade.deleteTraining(trainingId);
+        if (deleted) {
+            coachDashboard.showTrainingSuccess("Entrainement supprime.");
+            coachDashboard.clearTrainingForm();
+            coachDashboard.resetTrainingFilter();
+            onRefresh();
+        } else {
+            coachDashboard.showTrainingError("Suppression impossible.");
+        }
     }
 
     private LocalTime parseTime(String timeText) {
@@ -123,7 +139,4 @@ public class TrainingController {
             return null;
         }
     }
-
-
-
 }

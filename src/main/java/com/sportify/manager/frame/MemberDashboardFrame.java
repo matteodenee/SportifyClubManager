@@ -3,21 +3,24 @@ package com.sportify.manager.frame;
 import com.sportify.manager.controllers.ClubController;
 import com.sportify.manager.controllers.LicenceController;
 import com.sportify.manager.controllers.EventController;
-import com.sportify.manager.controllers.EquipmentController;
+import com.sportify.manager.controllers.TeamController;
 import com.sportify.manager.facade.LicenceFacade;
+import com.sportify.manager.facade.TrainingFacade;
 import com.sportify.manager.facade.TypeSportFacade;
 import com.sportify.manager.dao.PostgresUserDAO;
 import com.sportify.manager.services.Club;
-import com.sportify.manager.services.Equipment;
 import com.sportify.manager.services.Event;
+import com.sportify.manager.services.ParticipationStatus;
+import com.sportify.manager.services.Team;
+import com.sportify.manager.services.Training;
 import com.sportify.manager.services.User;
 import com.sportify.manager.services.TypeSport;
-import com.sportify.manager.services.Reservation;
 import com.sportify.manager.services.licence.Licence;
 import com.sportify.manager.services.licence.TypeLicence;
 import com.sportify.manager.services.licence.StatutLicence;
 import com.sportify.manager.frame.CommunicationFrame;
 import javafx.application.Application;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -31,21 +34,25 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MemberDashboardFrame extends Application {
     private ClubController clubController;
     private LicenceController licenceController;
     private final EventController eventController = EventController.getInstance();
-    private final EquipmentController equipmentController = new EquipmentController();
+    private final TeamController teamController = TeamController.getInstance();
+    private final TrainingFacade trainingFacade = TrainingFacade.getInstance();
     private User currentUser;
     private int memberClubId = -1;
 
     private TableView<Club> clubTable;
+    private ChoiceBox<String> joinRoleChoice;
     private VBox clubView;
     private VBox licenceView;
+    private VBox trainingView;
     private VBox eventView;
-    private VBox equipmentView;
     private VBox communicationView;
     private StackPane contentArea;
     private VBox licenceStatusBox;
@@ -56,13 +63,12 @@ public class MemberDashboardFrame extends Application {
     private ChoiceBox<String> eventRsvpChoice;
     private Label eventMessageLabel;
 
-    private ListView<Equipment> equipmentList;
-    private ListView<Reservation> reservationList;
-    private DatePicker equipmentStartDate;
-    private DatePicker equipmentEndDate;
-    private Label equipmentMessageLabel;
+    private ComboBox<Team> memberTeamCombo;
+    private TableView<Training> trainingTable;
+    private ChoiceBox<ParticipationStatus> trainingStatusChoice;
+    private Label trainingMessageLabel;
+    private final Map<Integer, String> memberTeamNames = new HashMap<>();
 
-    // Simulation pour le flux A1 (Documents manquants)
     private boolean documentAttached = false;
 
     public MemberDashboardFrame(User user) {
@@ -91,73 +97,80 @@ public class MemberDashboardFrame extends Application {
         Label menuLabel = new Label("MON ESPACE");
         menuLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px;");
 
-        Button btnClubs = createMenuButton("🔍 Parcourir Clubs", true);
-        Button btnLicence = createMenuButton("📜 Ma Licence", false);
-        Button btnEvents = createMenuButton("📅 Events", false);
-        Button btnEquipment = createMenuButton("🧰 Equipement", false);
-        Button btnCommunication = createMenuButton("💬 Communication", false);
-        Button btnLogout = createMenuButton("🚪 Déconnexion", false);
+        Button btnClubs = createMenuButton("Parcourir Clubs", true);
+        Button btnLicence = createMenuButton(" Ma Licence", false);
+        Button btnTraining = createMenuButton(" Trainings", false);
+        Button btnStats = createMenuButton("Stat Management", false);
+        Button btnEvents = createMenuButton("Events", false);
+        Button btnCommunication = createMenuButton("Communication", false);
+        Button btnLogout = createMenuButton("Déconnexion", false);
 
-        sidebar.getChildren().addAll(menuLabel, new Separator(), btnClubs, btnLicence, btnEvents, btnEquipment, btnCommunication, btnLogout);
+        sidebar.getChildren().addAll(menuLabel, new Separator(), btnClubs, btnLicence, btnTraining, btnStats, btnEvents, btnCommunication, btnLogout);
 
         createClubView();
         createLicenceView();
+        createTrainingView();
         createEventView();
-        createEquipmentView();
         createCommunicationView();
 
-        contentArea = new StackPane(clubView, licenceView, eventView, equipmentView, communicationView);
+        contentArea = new StackPane(clubView, licenceView, trainingView, eventView, communicationView);
         licenceView.setVisible(false);
+        trainingView.setVisible(false);
         eventView.setVisible(false);
-        equipmentView.setVisible(false);
         communicationView.setVisible(false);
 
         btnClubs.setOnAction(e -> {
-            switchView(btnClubs, btnLicence, btnEvents, btnEquipment, btnCommunication);
+            switchView(btnClubs, btnLicence, btnTraining, btnStats, btnEvents, btnCommunication);
             clubView.setVisible(true);
             licenceView.setVisible(false);
+            trainingView.setVisible(false);
             eventView.setVisible(false);
-            equipmentView.setVisible(false);
             communicationView.setVisible(false);
             refreshList();
         });
 
         btnLicence.setOnAction(e -> {
-            switchView(btnLicence, btnClubs, btnEvents, btnEquipment, btnCommunication);
+            switchView(btnLicence, btnClubs, btnTraining, btnStats, btnEvents, btnCommunication);
             clubView.setVisible(false);
             licenceView.setVisible(true);
+            trainingView.setVisible(false);
             eventView.setVisible(false);
-            equipmentView.setVisible(false);
             communicationView.setVisible(false);
             refreshLicenceInfo();
         });
 
-        btnEvents.setOnAction(e -> {
-            switchView(btnEvents, btnClubs, btnLicence, btnEquipment, btnCommunication);
+        btnTraining.setOnAction(e -> {
+            switchView(btnTraining, btnClubs, btnLicence, btnStats, btnEvents,  btnCommunication);
             clubView.setVisible(false);
             licenceView.setVisible(false);
+            trainingView.setVisible(true);
+            eventView.setVisible(false);
+            communicationView.setVisible(false);
+            refreshMemberTeams();
+            refreshTrainingList();
+        });
+
+        btnStats.setOnAction(e -> {
+            switchView(btnStats, btnClubs, btnLicence, btnTraining, btnEvents,  btnCommunication);
+            openMemberStats();
+        });
+
+        btnEvents.setOnAction(e -> {
+            switchView(btnEvents, btnClubs, btnLicence, btnTraining, btnStats, btnCommunication);
+            clubView.setVisible(false);
+            licenceView.setVisible(false);
+            trainingView.setVisible(false);
             eventView.setVisible(true);
-            equipmentView.setVisible(false);
             communicationView.setVisible(false);
             refreshEventList();
         });
 
-        btnEquipment.setOnAction(e -> {
-            switchView(btnEquipment, btnClubs, btnLicence, btnEvents, btnCommunication);
-            clubView.setVisible(false);
-            licenceView.setVisible(false);
-            eventView.setVisible(false);
-            equipmentView.setVisible(true);
-            communicationView.setVisible(false);
-            refreshEquipmentList();
-        });
-
         btnCommunication.setOnAction(e -> {
-            switchView(btnCommunication, btnClubs, btnLicence, btnEvents, btnEquipment);
+            switchView(btnCommunication, btnClubs, btnLicence, btnTraining, btnStats, btnEvents);
             clubView.setVisible(false);
             licenceView.setVisible(false);
+            trainingView.setVisible(false);
             eventView.setVisible(false);
-            equipmentView.setVisible(false);
             communicationView.setVisible(true);
         });
 
@@ -182,6 +195,9 @@ public class MemberDashboardFrame extends Application {
         clubTable = new TableView<>();
         setupClubTable();
 
+        joinRoleChoice = new ChoiceBox<>(FXCollections.observableArrayList("JOUEUR", "COACH"));
+        joinRoleChoice.getSelectionModel().selectFirst();
+
         Button joinButton = new Button("Demander à rejoindre");
         styleButton(joinButton, "#3498db");
         joinButton.setOnAction(e -> {
@@ -190,7 +206,7 @@ public class MemberDashboardFrame extends Application {
             else showAlert(Alert.AlertType.WARNING, "Sélection requise", "Veuillez choisir un club.");
         });
 
-        clubView.getChildren().addAll(welcomeLabel, new Label("Clubs disponibles :"), clubTable, joinButton);
+        clubView.getChildren().addAll(welcomeLabel, new Label("Clubs disponibles :"), clubTable, joinRoleChoice, joinButton);
         VBox.setVgrow(clubTable, Priority.ALWAYS);
     }
 
@@ -224,16 +240,16 @@ public class MemberDashboardFrame extends Application {
             System.err.println("Erreur chargement sports : " + e.getMessage());
         }
 
-        ComboBox<TypeLicence> typeCombo = new ComboBox<>(FXCollections.observableArrayList(TypeLicence.values()));
+        ComboBox<TypeLicence> typeCombo = new ComboBox<>(FXCollections.observableArrayList(TypeLicence.JOUEUR));
         typeCombo.setPromptText("Type (JOUEUR, COACH...)");
         typeCombo.setMaxWidth(Double.MAX_VALUE);
 
-        // FLUX A1 : Simulation de téléversement
-        Button btnUpload = new Button("📁 Joindre Certificat Médical");
+
+        Button btnUpload = new Button("Joindre Certificat Médical");
         styleButton(btnUpload, "#95a5a6");
         btnUpload.setOnAction(e -> {
             documentAttached = true;
-            btnUpload.setText("✅ Certificat Médical Joint");
+            btnUpload.setText(" Certificat Médical Joint");
             btnUpload.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
         });
 
@@ -256,7 +272,7 @@ public class MemberDashboardFrame extends Application {
 
                 // Reset formulaire
                 documentAttached = false;
-                btnUpload.setText("📁 Joindre Certificat Médical");
+                btnUpload.setText(" Joindre Certificat Médical");
                 btnUpload.setStyle("-fx-background-color: #95a5a6; -fx-text-fill: white;");
 
                 refreshLicenceInfo();
@@ -274,6 +290,66 @@ public class MemberDashboardFrame extends Application {
         scrollPane.setPrefHeight(200);
 
         licenceView.getChildren().addAll(title, new Label("Historique de vos licences (Critère 7.4) :"), scrollPane, new Separator(), formBox);
+    }
+
+    private void createTrainingView() {
+        trainingView = new VBox(20);
+        trainingView.setPadding(new Insets(30));
+
+        Label title = new Label("Mes Entraînements");
+        title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+
+        memberTeamCombo = new ComboBox<>();
+        memberTeamCombo.setPromptText("Choisir une équipe");
+        memberTeamCombo.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getNom() + " (" + item.getCategorie() + ")");
+                }
+            }
+        });
+        memberTeamCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getNom() + " (" + item.getCategorie() + ")");
+                }
+            }
+        });
+        memberTeamCombo.valueProperty().addListener((obs, oldVal, newVal) -> refreshTrainingList());
+
+        trainingTable = new TableView<>();
+        setupTrainingTable();
+
+        trainingStatusChoice = new ChoiceBox<>(FXCollections.observableArrayList(ParticipationStatus.values()));
+        trainingStatusChoice.getSelectionModel().select(ParticipationStatus.PENDING);
+        Button markBtn = new Button("Marquer");
+        styleButton(markBtn, "#f39c12");
+        markBtn.setOnAction(e -> handleTrainingParticipation());
+
+        HBox actions = new HBox(10, trainingStatusChoice, markBtn);
+        actions.setAlignment(Pos.CENTER_LEFT);
+
+        trainingMessageLabel = new Label();
+        trainingMessageLabel.setStyle("-fx-text-fill: #7f8c8d;");
+
+        trainingView.getChildren().addAll(
+                title,
+                new Label("Mes équipes :"),
+                memberTeamCombo,
+                new Separator(),
+                trainingTable,
+                actions,
+                trainingMessageLabel
+        );
+        VBox.setVgrow(trainingTable, Priority.ALWAYS);
     }
 
     private void createEventView() {
@@ -315,61 +391,77 @@ public class MemberDashboardFrame extends Application {
         eventView.getChildren().addAll(title, filters, eventList, rsvpBox, eventMessageLabel);
     }
 
-    private void createEquipmentView() {
-        equipmentView = new VBox(15);
-        equipmentView.setPadding(new Insets(30));
+    private void setupTrainingTable() {
+        TableColumn<Training, LocalDate> dateCol = new TableColumn<>("Date");
+        dateCol.setCellValueFactory(new PropertyValueFactory<>("date"));
 
-        Label title = new Label("Équipements");
-        title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
+        TableColumn<Training, LocalTime> timeCol = new TableColumn<>("Heure");
+        timeCol.setCellValueFactory(new PropertyValueFactory<>("heure"));
 
-        equipmentList = new ListView<>();
-        equipmentList.setCellFactory(list -> new ListCell<>() {
-            @Override
-            protected void updateItem(Equipment item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                } else {
-                    setText(item.getName() + " | " + item.getType() + " | qty=" + item.getQuantity());
+        TableColumn<Training, String> teamCol = new TableColumn<>("Équipe");
+        teamCol.setCellValueFactory(cell -> new SimpleStringProperty(getMemberTeamName(cell.getValue().getTeamId())));
+
+        TableColumn<Training, String> locationCol = new TableColumn<>("Lieu");
+        locationCol.setCellValueFactory(new PropertyValueFactory<>("lieu"));
+
+        TableColumn<Training, String> activityCol = new TableColumn<>("Activité");
+        activityCol.setCellValueFactory(new PropertyValueFactory<>("activite"));
+
+        trainingTable.getColumns().addAll(dateCol, timeCol, teamCol, locationCol, activityCol);
+        trainingTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        trainingTable.setPlaceholder(new Label("Aucun entraînement à afficher"));
+    }
+
+    private void refreshMemberTeams() {
+        List<Team> teams = teamController.handleGetTeamsByMember(currentUser.getId());
+        memberTeamNames.clear();
+        if (teams != null) {
+            for (Team t : teams) {
+                if (t != null) {
+                    memberTeamNames.put(t.getId(), t.getNom());
                 }
             }
-        });
+        }
+        memberTeamCombo.setItems(FXCollections.observableArrayList(teams == null ? List.of() : teams));
+        if (memberTeamCombo.getSelectionModel().isEmpty() && !memberTeamCombo.getItems().isEmpty()) {
+            memberTeamCombo.getSelectionModel().selectFirst();
+        }
+    }
 
-        equipmentStartDate = new DatePicker();
-        equipmentEndDate = new DatePicker();
-        Button reserveBtn = new Button("Réserver");
-        reserveBtn.setOnAction(e -> handleReserveEquipment());
+    private void refreshTrainingList() {
+        Team selected = memberTeamCombo.getValue();
+        if (selected == null) {
+            trainingTable.setItems(FXCollections.observableArrayList());
+            return;
+        }
+        List<Training> trainings = trainingFacade.listUpcomingByTeam(selected.getId(), LocalDate.now());
+        trainingTable.setItems(FXCollections.observableArrayList(trainings == null ? List.of() : trainings));
+    }
 
-        equipmentMessageLabel = new Label();
-        equipmentMessageLabel.setStyle("-fx-text-fill: #7f8c8d;");
+    private void openMemberStats() {
+        List<Team> teams = teamController.handleGetTeamsByMember(currentUser.getId());
+        if (teams == null || teams.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Aucune équipe", "Aucune équipe associée à votre compte.");
+            return;
+        }
+        StatFrame statFrame = new StatFrame();
+        statFrame.show(teams);
+    }
 
-        HBox reservationBox = new HBox(10, equipmentStartDate, equipmentEndDate, reserveBtn);
+    private void handleTrainingParticipation() {
+        Training selected = trainingTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            trainingMessageLabel.setText("Sélectionnez un entraînement.");
+            return;
+        }
+        ParticipationStatus status = trainingStatusChoice.getValue();
+        boolean ok = trainingFacade.markParticipation(selected.getId(), currentUser.getId(), status);
+        trainingMessageLabel.setText(ok ? "Participation mise à jour." : "Impossible de mettre à jour.");
+    }
 
-        reservationList = new ListView<>();
-        reservationList.setCellFactory(list -> new ListCell<>() {
-            @Override
-            protected void updateItem(Reservation item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                } else {
-                    setText("Res#" + item.getId() + " | eq=" + item.getEquipmentId()
-                            + " | " + item.getStartDate()
-                            + " -> " + item.getEndDate()
-                            + " | " + item.getStatus());
-                }
-            }
-        });
-
-        equipmentView.getChildren().addAll(
-                title,
-                equipmentList,
-                reservationBox,
-                equipmentMessageLabel,
-                new Separator(),
-                new Label("Mes réservations"),
-                reservationList
-        );
+    private String getMemberTeamName(int teamId) {
+        String name = memberTeamNames.get(teamId);
+        return name != null ? name : ("ID " + teamId);
     }
 
     private void createCommunicationView() {
@@ -412,38 +504,6 @@ public class MemberDashboardFrame extends Application {
         }
         boolean ok = eventController.rsvpToEvent(selected.getId(), currentUser.getId(), eventRsvpChoice.getValue());
         eventMessageLabel.setText(ok ? "RSVP enregistré." : eventController.getLastError());
-    }
-
-    private void refreshEquipmentList() {
-        List<Equipment> list = equipmentController.handleViewAllEquipment();
-        if (list != null && memberClubId > 0) {
-            list = list.stream().filter(e -> e != null && e.getClubId() == memberClubId).toList();
-        }
-        equipmentList.setItems(FXCollections.observableArrayList(list == null ? List.of() : list));
-        refreshMyReservations();
-    }
-
-    private void handleReserveEquipment() {
-        Equipment selected = equipmentList.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            equipmentMessageLabel.setText("Sélectionnez un équipement.");
-            return;
-        }
-        boolean ok = equipmentController.handleReserveEquipment(
-                selected.getId(),
-                currentUser.getId(),
-                equipmentStartDate.getValue(),
-                equipmentEndDate.getValue()
-        );
-        equipmentMessageLabel.setText(ok ? "Réservation envoyée." : equipmentController.getLastError());
-        if (ok) {
-            refreshMyReservations();
-        }
-    }
-
-    private void refreshMyReservations() {
-        List<Reservation> list = equipmentController.handleReservationsByUser(currentUser.getId());
-        reservationList.setItems(FXCollections.observableArrayList(list == null ? List.of() : list));
     }
 
     private String formatDateTime(LocalDateTime dateTime) {
@@ -519,7 +579,12 @@ public class MemberDashboardFrame extends Application {
 
     private void handleJoinRequest(Club club) {
         try {
-            clubController.requestToJoinClub(club.getClubID(), currentUser.getId());
+            String role = joinRoleChoice.getValue();
+            if (role == null || role.isBlank()) {
+                showAlert(Alert.AlertType.WARNING, "Sélection requise", "Veuillez choisir un rôle.");
+                return;
+            }
+            clubController.requestToJoinClub(club.getClubID(), currentUser.getId(), role);
             showAlert(Alert.AlertType.INFORMATION, "Succès", "Demande envoyée pour " + club.getName());
         } catch (SQLException e) {
             showAlert(Alert.AlertType.ERROR, "Erreur", e.getMessage());

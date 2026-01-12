@@ -5,14 +5,18 @@ import com.sportify.manager.controllers.EquipmentTypeController;
 import com.sportify.manager.controllers.LicenceController;
 import com.sportify.manager.controllers.MatchController;
 import com.sportify.manager.controllers.MatchRequestController;
+import com.sportify.manager.controllers.TeamController;
 import com.sportify.manager.controllers.TypeSportController;
+import com.sportify.manager.dao.PostgresUserDAO;
 import com.sportify.manager.services.Club;
 import com.sportify.manager.services.EquipmentType;
 import com.sportify.manager.services.EquipmentTypeActionResult;
 import com.sportify.manager.services.Match;
 import com.sportify.manager.services.MatchStatus;
 import com.sportify.manager.services.MatchRequest;
+import com.sportify.manager.services.Team;
 import com.sportify.manager.services.TypeSport;
+import com.sportify.manager.services.User;
 import com.sportify.manager.services.licence.Licence;
 import com.sportify.manager.services.licence.StatutLicence;
 import javafx.application.Application;
@@ -39,18 +43,20 @@ public class AdminDashboardFrame extends Application {
     private final EquipmentTypeController equipmentTypeController = new EquipmentTypeController();
     private MatchController matchController = MatchController.getInstance();
     private MatchRequestController matchRequestController = MatchRequestController.getInstance();
+    private TeamController teamController = TeamController.getInstance();
 
     // Navigation & Layout
     private StackPane contentArea;
-    private VBox clubView, sportView, licenceAdminView, matchView, equipmentTypeView;
-    private Button btnClubs, btnSports, btnLicences, btnMatchs, btnTypeEquipment;
+    private VBox clubView, sportView, licenceAdminView, matchView, equipmentTypeView, statView;
+    private Button btnClubs, btnSports, btnLicences, btnMatchs, btnTypeEquipment, btnStats;
 
     // --- ÉLÉMENTS CLUB ---
-    private TextField clubNameField, clubDescriptionField, meetingScheduleField, maxCapacityField;
-    private ComboBox<TypeSport> clubSportCombo;
+    private TextField clubNameField, clubDescriptionField, maxCapacityField;
     private TableView<Club> clubTable;
+    private ComboBox<User> clubDirectorCombo;
     private Label clubMessageLabel;
     private int currentClubId = 0;
+    private List<User> availableDirectors = new ArrayList<>();
 
     // --- ÉLÉMENTS TYPE SPORT ---
     private TextField sportNomField = new TextField();
@@ -68,8 +74,8 @@ public class AdminDashboardFrame extends Application {
     private TableView<Match> matchTable;
     private TableView<MatchRequest> matchRequestTable;
     private ComboBox<TypeSport> matchSportCombo;
-    private ComboBox<Club> matchHomeClubCombo;
-    private ComboBox<Club> matchAwayClubCombo;
+    private ComboBox<Team> matchHomeTeamCombo;
+    private ComboBox<Team> matchAwayTeamCombo;
     private DatePicker matchDatePicker;
     private TextField matchTimeField;
     private DatePicker matchDeadlineDatePicker;
@@ -82,6 +88,7 @@ public class AdminDashboardFrame extends Application {
     private Label matchMessageLabel;
     private int currentMatchId = 0;
     private List<Club> matchClubCache = new ArrayList<>();
+    private List<Team> matchTeamCache = new ArrayList<>();
     private List<TypeSport> matchSportCache = new ArrayList<>();
     private List<MatchRequest> matchRequestCache = new ArrayList<>();
 
@@ -90,6 +97,10 @@ public class AdminDashboardFrame extends Application {
     private TextField equipmentTypeNameField;
     private TextArea equipmentTypeDescField;
     private Label equipmentTypeMessageLabel;
+
+    private ComboBox<Club> statClubCombo;
+    private ComboBox<Team> statTeamCombo;
+    private Label statMessageLabel;
 
     public void setClubController(ClubController controller) {
         this.clubController = controller;
@@ -111,32 +122,35 @@ public class AdminDashboardFrame extends Application {
         Label menuLabel = new Label("ADMINISTRATION");
         menuLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px;");
 
-        btnClubs = createMenuButton("🏢 Gestion Clubs", true);
-        btnSports = createMenuButton("⚙ Type de Sports", false);
-        btnLicences = createMenuButton("📜 Valider Licences", false);
-        btnMatchs = createMenuButton("⚽ Gestion Matchs", false);
-        btnTypeEquipment = createMenuButton("🏷️ Type Equipement", false);
-        Button btnLogout = createMenuButton("🚪 Déconnexion", false);
+        btnClubs = createMenuButton("Gestion Clubs", true);
+        btnSports = createMenuButton("Type de Sports", false);
+        btnLicences = createMenuButton("Valider Licences", false);
+        btnMatchs = createMenuButton("Gestion Matchs", false);
+        btnStats = createMenuButton("Stat Management", false);
+        btnTypeEquipment = createMenuButton("Type Equipement", false);
+        Button btnLogout = createMenuButton("Déconnexion", false);
 
-        sidebar.getChildren().addAll(menuLabel, new Separator(), btnClubs, btnSports, btnLicences, btnMatchs, btnTypeEquipment, btnLogout);
+        sidebar.getChildren().addAll(menuLabel, new Separator(), btnClubs, btnSports, btnLicences, btnMatchs, btnStats, btnTypeEquipment, btnLogout);
 
         // --- PRÉPARATION DES VUES ---
         createClubView();
         createSportView();
         createLicenceAdminView();
         createMatchView();
+        createStatView();
         createEquipmentTypeView();
 
-        contentArea = new StackPane(clubView, sportView, licenceAdminView, matchView, equipmentTypeView);
+        contentArea = new StackPane(clubView, sportView, licenceAdminView, matchView, statView, equipmentTypeView);
         sportView.setVisible(false);
         licenceAdminView.setVisible(false);
         matchView.setVisible(false);
+        statView.setVisible(false);
         equipmentTypeView.setVisible(false);
 
         // --- LOGIQUE DE NAVIGATION ---
         btnClubs.setOnAction(e -> {
             switchView(clubView, btnClubs);
-            refreshSportChoices();
+            refreshDirectorChoices(null);
         });
         btnSports.setOnAction(e -> {
             switchView(sportView, btnSports);
@@ -152,6 +166,10 @@ public class AdminDashboardFrame extends Application {
             refreshMatchList();
             refreshMatchRequestList();
         });
+        btnStats.setOnAction(e -> {
+            switchView(statView, btnStats);
+            refreshStatClubChoices();
+        });
         btnTypeEquipment.setOnAction(e -> {
             switchView(equipmentTypeView, btnTypeEquipment);
             refreshEquipmentTypeList();
@@ -164,8 +182,8 @@ public class AdminDashboardFrame extends Application {
         Scene scene = new Scene(root, 1200, 800);
         primaryStage.setTitle("Sportify Admin - Système de Gestion Global");
         primaryStage.setScene(scene);
-        refreshSportChoices();
         refreshClubList();
+        refreshDirectorChoices(null);
         refreshMatchChoices();
         refreshMatchList();
         primaryStage.show();
@@ -264,23 +282,20 @@ public class AdminDashboardFrame extends Application {
 
         clubNameField = new TextField();
         clubDescriptionField = new TextField();
-        clubSportCombo = new ComboBox<>();
-        clubSportCombo.setPromptText("Choisir un sport");
-        meetingScheduleField = new TextField();
+        clubDirectorCombo = new ComboBox<>();
+        clubDirectorCombo.setPromptText("Choisir un directeur");
         maxCapacityField = new TextField();
         clubMessageLabel = new Label();
         clubMessageLabel.setStyle("-fx-text-fill: #e67e22; -fx-font-weight: bold;");
 
         formGrid.add(new Label("Nom du Club :"), 0, 0);
         formGrid.add(clubNameField, 1, 0);
-        formGrid.add(new Label("Sport :"), 2, 0);
-        formGrid.add(clubSportCombo, 3, 0);
+        formGrid.add(new Label("Directeur :"), 2, 0);
+        formGrid.add(clubDirectorCombo, 3, 0);
         formGrid.add(new Label("Description :"), 0, 1);
         formGrid.add(clubDescriptionField, 1, 1, 3, 1);
-        formGrid.add(new Label("Horaire :"), 0, 2);
-        formGrid.add(meetingScheduleField, 1, 2);
-        formGrid.add(new Label("Capacité Max :"), 2, 2);
-        formGrid.add(maxCapacityField, 3, 2);
+        formGrid.add(new Label("Capacité Max :"), 0, 2);
+        formGrid.add(maxCapacityField, 1, 2);
 
         Button addBtn = new Button("➕ Ajouter");
         styleButton(addBtn, "#2ecc71");
@@ -323,10 +338,10 @@ public class AdminDashboardFrame extends Application {
 
         matchSportCombo = new ComboBox<>();
         matchSportCombo.setPromptText("Sport");
-        matchHomeClubCombo = new ComboBox<>();
-        matchHomeClubCombo.setPromptText("Équipe domicile");
-        matchAwayClubCombo = new ComboBox<>();
-        matchAwayClubCombo.setPromptText("Équipe extérieure");
+        matchHomeTeamCombo = new ComboBox<>();
+        matchHomeTeamCombo.setPromptText("Équipe domicile");
+        matchAwayTeamCombo = new ComboBox<>();
+        matchAwayTeamCombo.setPromptText("Équipe extérieure");
         matchDatePicker = new DatePicker();
         matchTimeField = new TextField();
         matchTimeField.setPromptText("HH:mm");
@@ -341,6 +356,9 @@ public class AdminDashboardFrame extends Application {
         matchAwayScoreField = new TextField();
         matchMessageLabel = new Label();
         matchMessageLabel.setStyle("-fx-text-fill: #e67e22; -fx-font-weight: bold;");
+        configureMatchTeamCombo(matchHomeTeamCombo);
+        configureMatchTeamCombo(matchAwayTeamCombo);
+        matchSportCombo.valueProperty().addListener((obs, oldVal, newVal) -> updateMatchTeamCombos(newVal));
 
         formGrid.add(new Label("Sport :"), 0, 0);
         formGrid.add(matchSportCombo, 1, 0);
@@ -348,12 +366,12 @@ public class AdminDashboardFrame extends Application {
         formGrid.add(matchDatePicker, 3, 0);
 
         formGrid.add(new Label("Domicile :"), 0, 1);
-        formGrid.add(matchHomeClubCombo, 1, 1);
+        formGrid.add(matchHomeTeamCombo, 1, 1);
         formGrid.add(new Label("Heure :"), 2, 1);
         formGrid.add(matchTimeField, 3, 1);
 
         formGrid.add(new Label("Extérieur :"), 0, 2);
-        formGrid.add(matchAwayClubCombo, 1, 2);
+        formGrid.add(matchAwayTeamCombo, 1, 2);
         formGrid.add(new Label("Lieu :"), 2, 2);
         formGrid.add(matchLocationField, 3, 2);
 
@@ -372,11 +390,11 @@ public class AdminDashboardFrame extends Application {
         formGrid.add(new Label("Score Extérieur :"), 2, 5);
         formGrid.add(matchAwayScoreField, 3, 5);
 
-        Button addBtn = new Button("➕ Planifier");
+        Button addBtn = new Button("Planifier");
         styleButton(addBtn, "#2ecc71");
-        Button updateBtn = new Button("💾 Modifier");
+        Button updateBtn = new Button("Modifier");
         styleButton(updateBtn, "#f1c40f");
-        Button clearBtn = new Button("🧹 Vider");
+        Button clearBtn = new Button("Vider");
         styleButton(clearBtn, "#95a5a6");
 
         HBox actions = new HBox(10, addBtn, updateBtn, clearBtn);
@@ -389,9 +407,9 @@ public class AdminDashboardFrame extends Application {
         setupMatchRequestTable();
 
         HBox requestActions = new HBox(10);
-        Button approveBtn = new Button("✅ Valider");
+        Button approveBtn = new Button("Valider");
         styleButton(approveBtn, "#2ecc71");
-        Button rejectBtn = new Button("❌ Refuser");
+        Button rejectBtn = new Button("Refuser");
         styleButton(rejectBtn, "#e74c3c");
         requestActions.getChildren().addAll(approveBtn, rejectBtn);
         approveBtn.setOnAction(e -> handleApproveMatchRequest());
@@ -411,6 +429,58 @@ public class AdminDashboardFrame extends Application {
         addBtn.setOnAction(e -> handleAddMatch());
         updateBtn.setOnAction(e -> handleUpdateMatch());
         clearBtn.setOnAction(e -> clearMatchFields());
+    }
+
+    private void createStatView() {
+        statView = new VBox(20);
+        statView.setPadding(new Insets(30));
+
+        Label title = new Label("Stat Management");
+        title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #34495e;");
+
+        statClubCombo = new ComboBox<>();
+        statClubCombo.setPromptText("Sélectionner un club");
+        statClubCombo.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Club item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName());
+            }
+        });
+        statClubCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(Club item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName());
+            }
+        });
+        statClubCombo.valueProperty().addListener((obs, oldVal, newVal) -> refreshStatTeamChoices(newVal));
+
+        statTeamCombo = new ComboBox<>();
+        statTeamCombo.setPromptText("Sélectionner une équipe");
+        statTeamCombo.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getNom());
+            }
+        });
+        statTeamCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getNom());
+            }
+        });
+
+        Button openBtn = new Button("Ouvrir les stats");
+        styleButton(openBtn, "#3498db");
+        openBtn.setOnAction(e -> openAdminStats());
+
+        statMessageLabel = new Label();
+        statMessageLabel.setStyle("-fx-text-fill: #7f8c8d;");
+
+        statView.getChildren().addAll(title, statClubCombo, statTeamCombo, openBtn, statMessageLabel);
     }
 
     // ==========================================
@@ -546,7 +616,7 @@ public class AdminDashboardFrame extends Application {
         grid.add(sportDescField, 1, 1, 3, 1);
         grid.add(new Label("Rôles (1/ligne) :"), 0, 2);
         grid.add(sportRolesField, 1, 2);
-        grid.add(new Label("Stats (1/ligne) :"), 2, 2);
+        grid.add(new Label("Small events (1/ligne) :"), 2, 2);
         grid.add(sportStatsField, 3, 2);
 
         Button addSportBtn = new Button("➕ Créer");
@@ -575,6 +645,9 @@ public class AdminDashboardFrame extends Application {
         sportView.setVisible(false);
         licenceAdminView.setVisible(false);
         matchView.setVisible(false);
+        if (statView != null) {
+            statView.setVisible(false);
+        }
         if (equipmentTypeView != null) {
             equipmentTypeView.setVisible(false);
         }
@@ -584,6 +657,9 @@ public class AdminDashboardFrame extends Application {
         btnSports.setStyle(createMenuButtonStyle(btnSports == activeBtn));
         btnLicences.setStyle(createMenuButtonStyle(btnLicences == activeBtn));
         btnMatchs.setStyle(createMenuButtonStyle(btnMatchs == activeBtn));
+        if (btnStats != null) {
+            btnStats.setStyle(createMenuButtonStyle(btnStats == activeBtn));
+        }
         if (btnTypeEquipment != null) {
             btnTypeEquipment.setStyle(createMenuButtonStyle(btnTypeEquipment == activeBtn));
         }
@@ -621,22 +697,39 @@ public class AdminDashboardFrame extends Application {
 
     private void refreshSportList() {
         sportTable.setItems(FXCollections.observableArrayList(sportController.handleGetAllTypeSports()));
-        refreshSportChoices();
     }
 
     private void setupClubTable() {
+        TableColumn<Club, Integer> idCol = new TableColumn<>("ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("clubId"));
+
         TableColumn<Club, String> nameCol = new TableColumn<>("Nom");
         nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
-        TableColumn<Club, String> typeCol = new TableColumn<>("Type");
-        typeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
-        clubTable.getColumns().addAll(nameCol, typeCol);
+
+        TableColumn<Club, String> descCol = new TableColumn<>("Description");
+        descCol.setCellValueFactory(new PropertyValueFactory<>("description"));
+
+        TableColumn<Club, Integer> capacityCol = new TableColumn<>("Capacité");
+        capacityCol.setCellValueFactory(new PropertyValueFactory<>("maxCapacity"));
+
+        TableColumn<Club, Integer> membersCol = new TableColumn<>("Membres");
+        membersCol.setCellValueFactory(new PropertyValueFactory<>("currentMemberCount"));
+
+        TableColumn<Club, String> statusCol = new TableColumn<>("Statut");
+        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+
+        TableColumn<Club, String> directorCol = new TableColumn<>("Directeur");
+        directorCol.setCellValueFactory(cellData ->
+                new javafx.beans.property.SimpleStringProperty(getDirectorName(cellData.getValue().getManagerId())));
+
+        clubTable.getColumns().addAll(idCol, nameCol, descCol, capacityCol, membersCol, statusCol, directorCol);
         clubTable.getSelectionModel().selectedItemProperty().addListener((obs, old, newSelection) -> {
             if (newSelection != null) {
                 currentClubId = newSelection.getClubID();
                 clubNameField.setText(newSelection.getName());
                 clubDescriptionField.setText(newSelection.getDescription());
-                selectClubSport(newSelection.getSportId());
-                meetingScheduleField.setText(newSelection.getMeetingSchedule());
+                refreshDirectorChoices(newSelection.getManagerId());
+                selectClubDirector(newSelection.getManagerId());
                 maxCapacityField.setText(String.valueOf(newSelection.getMaxCapacity()));
             }
         });
@@ -652,6 +745,8 @@ public class AdminDashboardFrame extends Application {
                 sportNomField.setText(newVal.getNom());
                 sportDescField.setText(newVal.getDescription());
                 sportNbJoueursField.setText(String.valueOf(newVal.getNbJoueurs()));
+                sportRolesField.setText(String.join("\n", newVal.getRoles() == null ? List.of() : newVal.getRoles()));
+                sportStatsField.setText(String.join("\n", newVal.getStatistiques() == null ? List.of() : newVal.getStatistiques()));
             }
         });
     }
@@ -666,11 +761,11 @@ public class AdminDashboardFrame extends Application {
 
         TableColumn<Match, String> homeCol = new TableColumn<>("Domicile");
         homeCol.setCellValueFactory(cellData ->
-                new javafx.beans.property.SimpleStringProperty(getClubName(cellData.getValue().getHomeTeamId())));
+                new javafx.beans.property.SimpleStringProperty(getTeamDisplayById(cellData.getValue().getHomeTeamId())));
 
         TableColumn<Match, String> awayCol = new TableColumn<>("Extérieur");
         awayCol.setCellValueFactory(cellData ->
-                new javafx.beans.property.SimpleStringProperty(getClubName(cellData.getValue().getAwayTeamId())));
+                new javafx.beans.property.SimpleStringProperty(getTeamDisplayById(cellData.getValue().getAwayTeamId())));
 
         TableColumn<Match, String> dateCol = new TableColumn<>("Date/Heure");
         dateCol.setCellValueFactory(cellData ->
@@ -690,8 +785,8 @@ public class AdminDashboardFrame extends Application {
             if (selected != null) {
                 currentMatchId = selected.getId();
                 selectMatchSport(selected.getTypeSportId());
-                selectMatchClub(matchHomeClubCombo, selected.getHomeTeamId());
-                selectMatchClub(matchAwayClubCombo, selected.getAwayTeamId());
+                selectMatchTeam(matchHomeTeamCombo, selected.getHomeTeamId());
+                selectMatchTeam(matchAwayTeamCombo, selected.getAwayTeamId());
                 matchDatePicker.setValue(selected.getDateTime().toLocalDate());
                 matchTimeField.setText(formatTime(selected.getDateTime().toLocalTime()));
                 matchLocationField.setText(selected.getLocation());
@@ -714,13 +809,13 @@ public class AdminDashboardFrame extends Application {
         TableColumn<MatchRequest, Integer> idCol = new TableColumn<>("ID");
         idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
 
-        TableColumn<MatchRequest, String> requesterCol = new TableColumn<>("Club");
+        TableColumn<MatchRequest, String> requesterCol = new TableColumn<>("Domicile");
         requesterCol.setCellValueFactory(cellData ->
-                new javafx.beans.property.SimpleStringProperty(getClubName(cellData.getValue().getRequesterClubId())));
+                new javafx.beans.property.SimpleStringProperty(getTeamDisplayById(cellData.getValue().getHomeTeamId())));
 
-        TableColumn<MatchRequest, String> opponentCol = new TableColumn<>("Adversaire");
+        TableColumn<MatchRequest, String> opponentCol = new TableColumn<>("Extérieur");
         opponentCol.setCellValueFactory(cellData ->
-                new javafx.beans.property.SimpleStringProperty(getClubName(cellData.getValue().getOpponentClubId())));
+                new javafx.beans.property.SimpleStringProperty(getTeamDisplayById(cellData.getValue().getAwayTeamId())));
 
         TableColumn<MatchRequest, String> dateCol = new TableColumn<>("Date/Heure");
         dateCol.setCellValueFactory(cellData ->
@@ -737,24 +832,24 @@ public class AdminDashboardFrame extends Application {
 
     private void handleAddClub() {
         try {
-            TypeSport selectedSport = clubSportCombo.getValue();
-            if (selectedSport == null) {
-                clubMessageLabel.setText("Veuillez sélectionner un sport.");
+            User selectedDirector = clubDirectorCombo.getValue();
+            if (selectedDirector == null) {
+                clubMessageLabel.setText("Veuillez sélectionner un directeur.");
                 return;
             }
-
             clubController.createClub(
-                    0, // ID du club (probablement généré automatiquement ou défini à 0)
-                    clubNameField.getText(), // Nom du club
-                    clubDescriptionField.getText(), // Description du club
-                    selectedSport.getId(), // ID du sport
-                    selectedSport.getNom(), // Nom du sport pour affichage
-                    meetingScheduleField.getText(), // Horaire des réunions
-                    Integer.parseInt(maxCapacityField.getText()) // Capacité du club
+                    0,
+                    clubNameField.getText(),
+                    clubDescriptionField.getText(),
+                    0,
+                    "",
+                    Integer.parseInt(maxCapacityField.getText()),
+                    selectedDirector.getId()
             );
 
             refreshClubList();
             clearClubFields();
+            refreshDirectorChoices(null);
             clubMessageLabel.setText("");
 
         } catch (Exception e) {
@@ -770,25 +865,25 @@ public class AdminDashboardFrame extends Application {
         if (currentClubId == 0) return;
 
         try {
-            TypeSport selectedSport = clubSportCombo.getValue();
-            if (selectedSport == null) {
-                clubMessageLabel.setText("Veuillez sélectionner un sport.");
+            User selectedDirector = clubDirectorCombo.getValue();
+            if (selectedDirector == null) {
+                clubMessageLabel.setText("Veuillez sélectionner un directeur.");
                 return;
             }
-
             Club c = new Club(
-                    currentClubId, // ID du club
-                    clubNameField.getText(), // Nom du club
-                    clubDescriptionField.getText(), // Description du club
-                    selectedSport.getId(), // ID du sport
-                    selectedSport.getNom(), // Nom du sport pour affichage
-                    meetingScheduleField.getText(), // Horaire des réunions
-                    Integer.parseInt(maxCapacityField.getText()) // Capacité du club
+                    currentClubId,
+                    clubNameField.getText(),
+                    clubDescriptionField.getText(),
+                    0,
+                    "",
+                    Integer.parseInt(maxCapacityField.getText()),
+                    selectedDirector.getId()
             );
 
             clubController.updateClub(c);
 
             refreshClubList();
+            refreshDirectorChoices(selectedDirector.getId());
             clubMessageLabel.setText("");
         } catch (Exception e) {
             clubMessageLabel.setText("Erreur mise à jour.");
@@ -810,17 +905,18 @@ public class AdminDashboardFrame extends Application {
     private void clearClubFields() {
         clubNameField.clear();
         clubDescriptionField.clear();
-        clubSportCombo.getSelectionModel().clearSelection();
-        meetingScheduleField.clear();
         maxCapacityField.clear();
+        clubDirectorCombo.getSelectionModel().clearSelection();
         clubMessageLabel.setText("");
         currentClubId = 0;
     }
 
     private void handleAddSport() {
         try {
+            List<String> roles = parseLines(sportRolesField.getText());
+            List<String> stats = parseLines(sportStatsField.getText());
             sportController.handleCreateTypeSport(sportNomField.getText(), sportDescField.getText(),
-                    Integer.parseInt(sportNbJoueursField.getText()), new ArrayList<>(), new ArrayList<>());
+                    Integer.parseInt(sportNbJoueursField.getText()), roles, stats);
             refreshSportList();
         } catch (Exception e) {
             showError("Erreur", "Saisie invalide.");
@@ -831,6 +927,9 @@ public class AdminDashboardFrame extends Application {
         if (selectedTypeSport == null) return;
         selectedTypeSport.setNom(sportNomField.getText());
         selectedTypeSport.setDescription(sportDescField.getText());
+        selectedTypeSport.setNbJoueurs(Integer.parseInt(sportNbJoueursField.getText()));
+        selectedTypeSport.setRoles(parseLines(sportRolesField.getText()));
+        selectedTypeSport.setStatistiques(parseLines(sportStatsField.getText()));
         sportController.handleUpdateTypeSport(selectedTypeSport);
         refreshSportList();
     }
@@ -875,15 +974,6 @@ public class AdminDashboardFrame extends Application {
         }
     }
 
-    private void refreshSportChoices() {
-        List<TypeSport> sports = sportController.handleGetAllTypeSports();
-        if (sports == null) {
-            clubSportCombo.setItems(FXCollections.observableArrayList());
-            return;
-        }
-        clubSportCombo.setItems(FXCollections.observableArrayList(sports));
-    }
-
     private void refreshMatchChoices() {
         List<TypeSport> sports = sportController.handleGetAllTypeSports();
         matchSportCache = sports == null ? new ArrayList<>() : sports;
@@ -894,8 +984,14 @@ public class AdminDashboardFrame extends Application {
         } catch (SQLException e) {
             matchClubCache = new ArrayList<>();
         }
-        matchHomeClubCombo.setItems(FXCollections.observableArrayList(matchClubCache));
-        matchAwayClubCombo.setItems(FXCollections.observableArrayList(matchClubCache));
+        matchTeamCache = new ArrayList<>();
+        for (Club club : matchClubCache) {
+            List<Team> teams = teamController.handleGetTeams(club.getClubID());
+            if (teams != null) {
+                matchTeamCache.addAll(teams);
+            }
+        }
+        updateMatchTeamCombos(matchSportCombo.getValue());
     }
 
     private void refreshMatchList() {
@@ -917,30 +1013,151 @@ public class AdminDashboardFrame extends Application {
         matchRequestTable.setItems(FXCollections.observableArrayList(requests));
     }
 
-    private void selectClubSport(int sportId) {
-        if (clubSportCombo.getItems() == null) {
+    private void refreshDirectorChoices(String currentDirectorId) {
+        try {
+            availableDirectors = PostgresUserDAO.getInstance().getDirectorsWithoutClub();
+            if (currentDirectorId != null && !currentDirectorId.isBlank()) {
+                boolean alreadyListed = availableDirectors.stream()
+                        .anyMatch(user -> currentDirectorId.equals(user.getId()));
+                if (!alreadyListed) {
+                    User current = PostgresUserDAO.getInstance().getUserById(currentDirectorId);
+                    if (current != null) {
+                        availableDirectors.add(current);
+                    }
+                }
+            }
+            clubDirectorCombo.setItems(FXCollections.observableArrayList(availableDirectors));
+        } catch (SQLException e) {
+            clubDirectorCombo.setItems(FXCollections.observableArrayList());
+        }
+        clubDirectorCombo.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(User item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName() + " (" + item.getId() + ")");
+                }
+            }
+        });
+        clubDirectorCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(User item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getName() + " (" + item.getId() + ")");
+                }
+            }
+        });
+    }
+
+    private void refreshStatClubChoices() {
+        List<Club> clubs;
+        try {
+            clubs = clubController.getAllClubs();
+        } catch (SQLException e) {
+            clubs = new ArrayList<>();
+        }
+        statClubCombo.setItems(FXCollections.observableArrayList(clubs));
+        if (!statClubCombo.getItems().isEmpty()) {
+            statClubCombo.getSelectionModel().selectFirst();
+            refreshStatTeamChoices(statClubCombo.getValue());
+        } else {
+            statTeamCombo.setItems(FXCollections.observableArrayList());
+        }
+        if (statMessageLabel != null) {
+            statMessageLabel.setText("");
+        }
+    }
+
+    private void refreshStatTeamChoices(Club club) {
+        if (club == null) {
+            statTeamCombo.setItems(FXCollections.observableArrayList());
             return;
         }
-        for (TypeSport sport : clubSportCombo.getItems()) {
-            if (sport.getId() == sportId) {
-                clubSportCombo.getSelectionModel().select(sport);
+        List<Team> teams = teamController.handleGetTeams(club.getClubID());
+        statTeamCombo.setItems(FXCollections.observableArrayList(teams == null ? List.of() : teams));
+        if (!statTeamCombo.getItems().isEmpty()) {
+            statTeamCombo.getSelectionModel().selectFirst();
+        }
+    }
+
+    private void openAdminStats() {
+        Club club = statClubCombo.getValue();
+        if (club == null) {
+            showError("Erreur", "Sélectionnez un club.");
+            return;
+        }
+        Team team = statTeamCombo.getValue();
+        if (team == null) {
+            showError("Aucune équipe", "Sélectionnez une équipe.");
+            return;
+        }
+        StatFrame statFrame = new StatFrame();
+        statFrame.show(List.of(team));
+    }
+
+    private List<String> parseLines(String value) {
+        if (value == null || value.isBlank()) {
+            return new ArrayList<>();
+        }
+        String[] parts = value.split("\\R");
+        List<String> out = new ArrayList<>();
+        for (String part : parts) {
+            String trimmed = part.trim();
+            if (!trimmed.isEmpty()) {
+                out.add(trimmed);
+            }
+        }
+        return out;
+    }
+
+    private void selectClubDirector(String directorId) {
+        if (directorId == null || clubDirectorCombo.getItems() == null) {
+            clubDirectorCombo.getSelectionModel().clearSelection();
+            return;
+        }
+        for (User user : clubDirectorCombo.getItems()) {
+            if (directorId.equals(user.getId())) {
+                clubDirectorCombo.getSelectionModel().select(user);
                 return;
             }
         }
-        clubSportCombo.getSelectionModel().clearSelection();
+        clubDirectorCombo.getSelectionModel().clearSelection();
+    }
+
+    private String getDirectorName(String directorId) {
+        if (directorId == null || directorId.isBlank()) {
+            return "";
+        }
+        User user = PostgresUserDAO.getInstance().getUserById(directorId);
+        return user == null ? directorId : user.getName();
     }
 
     private Match buildMatchFromForm(Integer matchId) {
         TypeSport sport = matchSportCombo.getValue();
-        Club home = matchHomeClubCombo.getValue();
-        Club away = matchAwayClubCombo.getValue();
+        Team home = matchHomeTeamCombo.getValue();
+        Team away = matchAwayTeamCombo.getValue();
 
         if (sport == null || home == null || away == null) {
             matchMessageLabel.setText("Veuillez sélectionner sport et équipes.");
             return null;
         }
-        if (home.getClubID() == away.getClubID()) {
+        if (home.getId() == away.getId()) {
             matchMessageLabel.setText("Les équipes doivent être différentes.");
+            return null;
+        }
+        Integer homeSportId = home.getTypeSportId();
+        Integer awaySportId = away.getTypeSportId();
+        if (homeSportId != null && awaySportId != null && !homeSportId.equals(awaySportId)) {
+            matchMessageLabel.setText("Les équipes doivent partager le même sport.");
+            return null;
+        }
+        if (!teamMatchesSport(home, sport) || !teamMatchesSport(away, sport)) {
+            matchMessageLabel.setText("Les équipes doivent correspondre au sport sélectionné.");
             return null;
         }
         LocalDate date = matchDatePicker.getValue();
@@ -969,8 +1186,8 @@ public class AdminDashboardFrame extends Application {
         return new Match(
                 matchId,
                 sport.getId(),
-                home.getClubID(),
-                away.getClubID(),
+                home.getId(),
+                away.getId(),
                 dateTime,
                 matchLocationField.getText(),
                 matchRefereeField.getText(),
@@ -983,8 +1200,8 @@ public class AdminDashboardFrame extends Application {
 
     private void clearMatchFields() {
         matchSportCombo.getSelectionModel().clearSelection();
-        matchHomeClubCombo.getSelectionModel().clearSelection();
-        matchAwayClubCombo.getSelectionModel().clearSelection();
+        matchHomeTeamCombo.getSelectionModel().clearSelection();
+        matchAwayTeamCombo.getSelectionModel().clearSelection();
         matchDatePicker.setValue(null);
         matchTimeField.clear();
         matchDeadlineDatePicker.setValue(null);
@@ -1026,14 +1243,75 @@ public class AdminDashboardFrame extends Application {
         matchSportCombo.getSelectionModel().clearSelection();
     }
 
-    private void selectMatchClub(ComboBox<Club> combo, int clubId) {
-        for (Club club : combo.getItems()) {
-            if (club.getClubID() == clubId) {
-                combo.getSelectionModel().select(club);
+    private void selectMatchTeam(ComboBox<Team> combo, int teamId) {
+        for (Team team : combo.getItems()) {
+            if (team.getId() == teamId) {
+                combo.getSelectionModel().select(team);
                 return;
             }
         }
         combo.getSelectionModel().clearSelection();
+    }
+
+    private void configureMatchTeamCombo(ComboBox<Team> combo) {
+        combo.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : getTeamDisplay(item));
+            }
+        });
+        combo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(Team item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : getTeamDisplay(item));
+            }
+        });
+    }
+
+    private void updateMatchTeamCombos(TypeSport sport) {
+        List<Team> filtered = new ArrayList<>();
+        for (Team team : matchTeamCache) {
+            if (sport == null || teamMatchesSport(team, sport)) {
+                filtered.add(team);
+            }
+        }
+        matchHomeTeamCombo.setItems(FXCollections.observableArrayList(filtered));
+        matchAwayTeamCombo.setItems(FXCollections.observableArrayList(filtered));
+        if (!filtered.contains(matchHomeTeamCombo.getValue())) {
+            matchHomeTeamCombo.getSelectionModel().clearSelection();
+        }
+        if (!filtered.contains(matchAwayTeamCombo.getValue())) {
+            matchAwayTeamCombo.getSelectionModel().clearSelection();
+        }
+    }
+
+    private boolean teamMatchesSport(Team team, TypeSport sport) {
+        if (team == null || sport == null) {
+            return false;
+        }
+        if (team.getTypeSportId() == null) {
+            return true;
+        }
+        return team.getTypeSportId() == sport.getId();
+    }
+
+    private String getTeamDisplay(Team team) {
+        if (team == null) {
+            return "";
+        }
+        String clubName = getClubName(team.getClubId());
+        return team.getNom() + " (" + clubName + ")";
+    }
+
+    private String getTeamDisplayById(int teamId) {
+        for (Team team : matchTeamCache) {
+            if (team.getId() == teamId) {
+                return getTeamDisplay(team);
+            }
+        }
+        return String.valueOf(teamId);
     }
 
     private String formatDateTime(LocalDateTime dateTime) {

@@ -4,10 +4,7 @@ import com.sportify.manager.services.Match; // On utilise le Match que tu as dan
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Interface adaptée pour l'intégration globale du projet.
- * Elle permet de lier MatchManagement avec StatManage.
- */
+
 public interface MatchDAO {
 
     Match create(Match match) throws Exception;
